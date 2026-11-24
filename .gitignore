@@ -1,0 +1,45 @@
+# --- SECRETS: never commit ---
+# (comments only on their own lines: git does not support inline comments)
+.env
+# go2rtc.yaml holds the Mi account token after login
+go2rtc/go2rtc.yaml
+go2rtc/go2rtc.log
+# broker password (hash) and the native broker config generated for this machine
+mosquitto/passwd
+mosquitto/native.conf
+mosquitto/mosquitto.pid
+go2rtc/go2rtc.log.1
+*.token
+*.key
+# leftovers of atomic writes of .env and go2rtc.yaml: they hold the same secrets
+*.part
+
+# --- data and binaries ---
+# model weights: tens of megabytes each, they do not belong in git
+*.pt
+*.onnx
+*.mlpackage
+# training outputs (including experiments): reproducible, no need to keep them
+runs/
+dataset/
+storage/
+ollama/
+bin/
+*.db
+*.sqlite3
+*.mp4
+*.jpg
+*.png
+!docs/images/*.png
+!docs/images/*.jpg
+!pawsight/static/*.png
+
+# --- local configuration ---
+# your own zones: created from zones.example.yaml and edited by the setup page
+/zones.yaml
+
+# --- misc ---
+.DS_Store
+__pycache__/
+*.pyc
+.venv/

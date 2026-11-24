@@ -1,0 +1,166 @@
+# The author's own room zones (2026-09-09): a test fixture for zone order,
+# room zones and trigger robustness against detector noise. What ships is
+# zones.example.yaml, not this file.
+# The camera PANS AND TILTS, so zones with fixed pixel coordinates are wrong as
+# soon as the camera moves. Two kinds of zones are supported:
+#
+#   anchor  — the zone is tied to a landmark that YOLO finds in the frame and
+#             moves with the camera. No landmark in the frame, no zone.
+#   polygon — fixed coordinates in the 2304x1296 frame. Valid ONLY with the
+#             camera locked in place (`python -m pawsight ptz track-off`).
+#
+# The shape of an anchored zone is set by one of two keys:
+#
+#   shape  — a polygon ON THE FLOOR: vertices are [dx, dy] offsets from the
+#            landmark's floor contact point ((x1+x2)/2, y2) in detector-frame
+#            pixels (640x360). The owner draws it, see below.
+#   expand — a rectangle: the landmark's box grown by [left, up, right, down]
+#            pixels. Fallback for a zone without a shape; it reaches up the
+#            wall above the bowl, where the dog cannot stand.
+#
+# Membership is decided by the ground contact point ((x1+x2)/2, y2), not the centre.
+#
+# Bowls are picked by RELATIVE ORDER (left/right), not by absolute
+# coordinates: panning shifts the frame but keeps the left-to-right order of
+# objects. In this scene that cue is reliable: the bowls are ~100 px apart in X,
+# while their boxes differ by only ~10 px in Y (detector noise).
+#
+# WATER BOWL = LEFT. Confirmed by the owner, who outlined it on a frame.
+# Detections on the reference frame: left (1251,1115)-(1343,1168),
+#                                    right (1354,1134)-(1451,1169).
+
+# ZONE SHAPES (shape) are CONES, approved by the owner on 2026-09-07 from a picture.
+# The cone's apex is at the bowl's floor contact point, with a short base as wide
+# as the bowl (a dog right up against the bowl must not drop out of the zone); the
+# axis runs from the bowl to the far end of the strip the owner drew on the 20:41
+# frame (water almost along the rug, food noticeably lower, towards the camera);
+# opening 20° to each side; length as the strip's (107 and 123 px of the detector
+# frame); the far edge is rounded with a five-vertex arc. Offsets are relative to
+# the bowls found on the same frame: left (447,159)-(471,175), right (469,166)-(497,185).
+# The cones overlap in the middle; the owner accepted this deliberately:
+# the water/food hint fires for both in the overlap, and the VLM decides.
+# The combined trigger outline was built by the agent: the convex hull of both
+# cones grown 15 px outwards. Each cone is tied to its own bowl, the trigger to
+# the pair, and detector noise on the box bottoms shifts them relative to each
+# other; without the margin a dog inside a cone would drop out of "at the bowls"
+# (tests/test_config_shape.py guards this invariant).
+# Do not tweak or "improve" the shapes without the owner: they describe the owner's
+# room (AGENTS.md, section 6). A shape belongs to the bowl's PLACE, so the setup
+# page swaps the shapes too when it swaps left/right.
+
+zones:
+  # Visit TRIGGER: both bowls together. Geometry is reliable here.
+  # The shape is the convex hull of both cones below plus a 15 px margin: a dog
+  # in either cone is always also "at the bowls", otherwise the visit is not counted.
+  bowls:
+    label: "at the bowls"
+    anchor:
+      class: bowl
+      select: all
+      min_conf: 0.20
+      shape: [[32, 17], [-79, 106], [-103, 77], [-127, 34], [-133, 13], [-135, -8], [-132, -43], [-14, -36], [15, -21]]
+      memory_sec: 20
+
+  # Below is only a WEAK geometric hint. The bowls are ~11 px apart and the dog
+  # is much wider than that gap, so the floor contact point cannot tell which
+  # bowl the head is over. The VLM tells drinking from eating; these zones are
+  # recorded as a second opinion, and any disagreement is stored in the DB.
+  # Floor cones at least point where the paws are, not at the fridge.
+  water:
+    label: "water bowl"
+    anchor:
+      class: bowl
+      select: left         # water — left (confirmed by owner)
+      min_conf: 0.20
+      shape: [[-1, 12], [-5, -11], [-106, -17], [-107, 1], [-105, 20], [-100, 38], [-92, 55]]
+      memory_sec: 20
+
+  food:
+    label: "food bowl"
+    anchor:
+      class: bowl
+      select: right        # food — right
+      min_conf: 0.20
+      shape: [[2, 12], [-8, -10], [-122, 9], [-119, 30], [-112, 50], [-102, 69], [-88, 85]]
+      memory_sec: 20
+
+  # --- ROOM ZONES ----------------------------------------------------------
+  # From here on these are places in the room, not bowls. The agent took the
+  # outlines from frame storage/snapshots/1788799037_92.jpg (2026-09-07 18:37,
+  # detector frame 640x360) by MEASUREMENT, not by eye: the rug from a local
+  # texture mask with lines fitted to its top and bottom edges, the kitchen from
+  # the visible border between the light floor and the parquet, the door from the
+  # doorway and where the paws land, the desk from the edge of the mat under the
+  # chair. The owner looked at a picture with these outlines and approved it on
+  # 2026-09-09 (room_zones_confirmed below).
+  #
+  # Offsets are from the floor contact point of the bowl PAIR on the same frame:
+  # left (438,158)-(462,175), right (460,166)-(489,183) -> (463.5, 183).
+  # That is why all four use select: all rather than left/right: the anchor is the
+  # whole pair, and the setup page leaves them alone when it swaps water and food.
+  #
+  # Checked by meaning, not by eye: 196 dog poses from 190 frames of 6-9 September,
+  # taken with the bowl pair at the same coordinates, are assigned as follows: by
+  # the door 55%, rug 17%, at the bowls 8%, kitchen 7%, desk 1%, outside all zones 12%.
+  # These are shares AFTER resolution in file order, not areas: the bowls trigger
+  # is deliberately wide (hull of both cones plus 15 px) and overlaps a third of
+  # the rug and a third of the kitchen. A dog in the overlap counts as a visit to
+  # the bowls; that is intended, so the rug and kitchen must not be trimmed to fit
+  # around it: they describe the room, not what is left over from the trigger.
+  #
+  # Two caveats that make these zones weaker than the bowl zones:
+  #   * a zone exists only while BOTH bowls are in the frame, and these zones lie
+  #     30-290 px from the anchor, farther than the cones, so camera pans smear
+  #     them more;
+  #   * the shares above were computed from saved event snapshots and only from
+  #     frames with the bowls visible: this is not a full presence map of the room.
+  #
+  # Order in the file is part of the logic: bowls comes first, so a visit to the
+  # bowls wins over a room zone when the dog is in both
+  # (Brain.observe takes the first non-hint zone).
+
+  door:
+    label: "by the door"
+    anchor:
+      class: bowl
+      select: all
+      min_conf: 0.20
+      shape: [[-262, -104], [-190, -103], [-186, -56], [-274, -52], [-282, -71]]
+      memory_sec: 20
+
+  carpet:
+    label: "rug"
+    anchor:
+      class: bowl
+      select: all
+      min_conf: 0.20
+      shape: [[-270, -51], [-40, -19], [-40, 14], [-198, 26], [-270, 18]]
+      memory_sec: 20
+
+  # The kitchen is cut on the right at frame x=430: past that the mat with the
+  # bowls begins, and without the cut "kitchen" would swallow visits to them.
+  kitchen:
+    label: "kitchen"
+    anchor:
+      class: bowl
+      select: all
+      min_conf: 0.20
+      shape: [[-150, -64], [-34, -58], [-34, -7], [-150, -53]]
+      memory_sec: 20
+
+  # Candidate: it got 2 poses out of 196. Not because the dog does not go there,
+  # but because by the desk the camera has usually already turned to follow it
+  # and the bowls are out of frame; such frames never make it into the stats.
+  # The mat runs off the right edge of the frame, so the zone runs into that edge.
+  desk:
+    label: "desk"
+    anchor:
+      class: bowl
+      select: all
+      min_conf: 0.20
+      shape: [[-8, 20], [176, 15], [176, 155], [136, 127], [96, 105], [56, 82], [16, 57], [-2, 32]]
+      memory_sec: 20
+
+# Date the owner approved the room outlines (see the block above). Without it
+# the room zones are only an agent's draft.
+room_zones_confirmed: "2026-09-09"

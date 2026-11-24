@@ -1,0 +1,10 @@
+.venv/
+.git/
+storage/
+dataset/
+bin/
+ollama/
+*.pt
+.env
+go2rtc/go2rtc.yaml
+__pycache__/

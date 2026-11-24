@@ -1,0 +1,30 @@
+/* Zone editor. Colours and buttons come from dashboard.css. */
+.zapp{display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:18px; padding:18px;
+      max-width:1500px; margin:0 auto; align-content:start}
+.zmain{min-width:0}
+.zstage{aspect-ratio:auto}
+#frame{display:block; width:100%; height:auto; user-select:none; -webkit-user-drag:none}
+#canvas{position:absolute; inset:0; width:100%; height:100%; cursor:crosshair; touch-action:none}
+#canvas:focus-visible{outline:2px solid var(--accent); outline-offset:-2px}
+.zbar{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px}
+.zbar[hidden]{display:none}
+.zbar .bar-hint{margin-right:auto}
+.znote{color:var(--muted); font-size:13px; margin:12px 2px}
+.btn.primary{background:var(--accent-dim); border-color:var(--accent)}
+.btn.wide{width:100%}
+.zlist{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px}
+.zlist li{border:1px solid var(--edge); border-radius:5px; padding:8px 9px; background:var(--panel-2)}
+.zlist li.sel{border-color:var(--accent)}
+.zrow{display:flex; gap:7px; align-items:center}
+.zrow input[type=text]{flex:1; min-width:0; background:var(--bg); color:var(--ink);
+  border:1px solid var(--edge); border-radius:4px; padding:4px 7px; font:inherit; font-size:13.5px}
+.zsw{width:12px; height:12px; border-radius:3px; flex:none}
+.zmeta{display:flex; gap:8px; align-items:center; margin-top:6px; font-size:12px; color:var(--faint)}
+.zmeta > span{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0}
+.zmeta .btn{margin-left:auto}
+.zmeta .btn + .btn{margin-left:0}
+.zcheck{display:flex; gap:8px; align-items:center; font-size:13.5px; color:var(--ink); cursor:pointer}
+.zcheck.small{font-size:12.5px; color:var(--muted)}
+.zadd{display:flex; flex-direction:column; gap:7px; margin-top:12px}
+#status.err{color:var(--bad)} #status.ok{color:var(--ok)}
+@media (max-width:900px){ .zapp{grid-template-columns:1fr} }

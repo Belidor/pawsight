@@ -1,0 +1,35 @@
+# Dependencies of the native part. Installed into .venv with uv (see install.sh).
+#
+# The ultralytics version is PINNED not out of caution but for a reason: fine-tuning
+# in this project relies on carrying over rows of the pretrained head by class
+# NAME (cls_remap). Without it the `bowl` class is wiped out during fine-tuning,
+# and every zone depends on it; that would break silently. See pawsight/train.py.
+ultralytics==8.4.141
+
+# torch/torchvision: arm64 wheels only. There are none for Rosetta (x86_64),
+# so install.sh checks the interpreter's architecture separately.
+torch>=2.4
+torchvision>=0.19
+
+# headless: the GUI part of OpenCV pulls in Qt and crashes on a server without a display
+opencv-python-headless>=4.10
+numpy>=1.26
+
+# lap is needed by BoT-SORT for Hungarian-algorithm track matching.
+# Without it ultralytics silently falls back to worse matching.
+lap>=0.5
+
+paho-mqtt>=2.0
+httpx>=0.27
+aiohttp>=3.9
+pyyaml>=6
+python-dotenv>=1
+
+# cryptography: the local miIO protocol (camera pan/tilt).
+# We do NOT use python-miio: it pulls in netifaces, which cannot be built
+# without a compiler, and pawsight/miio_lite.py implements the part we need.
+cryptography>=42
+
+# micloud: only for scripts/get_device_token.py (Xiaomi cameras).
+# A regular RTSP camera does not need it, but it is tiny.
+micloud>=0.6

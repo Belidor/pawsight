@@ -1,0 +1,10 @@
+# Tool configuration only: pawsight is not packaged for PyPI (install.sh sets it up).
+[tool.ruff]
+target-version = "py312"
+line-length = 110
+extend-exclude = [".venv", "runs", "dataset", "storage"]
+
+[tool.ruff.lint]
+# Real defects only: syntax errors, undefined names, unused imports and variables.
+# Style is left to review; the code base keeps its explanatory long lines.
+select = ["E9", "F"]

@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/png" href="/static/favicon.png">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+<title>pawsight</title>
+<!--
+  The dark theme is deliberate and the only one: this is video surveillance,
+  the frame is the main thing, and a light background around it glares and
+  skews how bright the video itself looks.
+  System fonts, no Google Fonts: a local tool must work without internet.
+-->
+<link rel="stylesheet" href="/static/dashboard.css">
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>pawsight <span>· live view</span></h1>
+    <div class="health">
+      <span><i class="dot" id="d-det"></i>detector</span>
+      <span><i class="dot" id="d-cam"></i>camera</span>
+      <span id="h-train" class="train" hidden><i class="dot on"></i>fine-tuning <b id="h-train-t"></b></span>
+      <a href="/zones" title="draw zones and choose which send Telegram notifications">zones</a>
+      <a href="/setup" title="camera address, Telegram, water bowl choice">setup</a>
+    </div>
+  </header>
+
+  <div class="main">
+    <div class="stage" id="stage">
+      <div id="player-slot" style="width:100%;height:100%"></div>
+      <canvas id="overlay"></canvas>
+      <img id="still" alt="detector still frame" hidden draggable="false">
+      <canvas id="shot" hidden tabindex="0" aria-label="still frame labelling"></canvas>
+      <div class="badge" id="badge">waiting for detector…</div>
+    </div>
+    <div class="stagebar" id="bar">
+      <div class="bar-live">
+        <button class="btn" id="shot-take">Capture frame for fine-tuning</button>
+        <span class="bar-hint">takes the detector frame (640×360), not what the player shows: the video lags by about a second</span>
+      </div>
+      <div class="bar-edit" hidden>
+        <button class="btn sm" id="shot-prev" title="previous frame">←</button>
+        <span class="tally" id="shot-when"></span>
+        <button class="btn sm" id="shot-next" title="next frame">→</button>
+        <span class="seg" role="group" aria-label="class of new box">
+          <button class="seg-b on" data-cls="dog">dog <kbd>1</kbd></button>
+          <button class="seg-b" data-cls="bowl">bowl <kbd>2</kbd></button>
+          <button class="seg-b" data-cls="person">person <kbd>3</kbd></button>
+        </span>
+        <span class="tally" id="shot-tally"></span>
+        <span class="bar-sp"></span>
+        <button class="btn sm" id="shot-del" disabled>Delete box</button>
+        <button class="btn ghost" id="shot-cancel">Cancel <kbd>Esc</kbd></button>
+        <button class="btn go" id="shot-save">Save to dataset</button>
+      </div>
+      <div class="bar-review" hidden>
+        <button class="btn sm" id="rv-prev" title="previous frame">←</button>
+        <span class="tally" id="rv-pos"></span>
+        <button class="btn sm" id="rv-next" title="next frame">→</button>
+        <span class="seg" role="group" aria-label="class of new box">
+          <button class="seg-b on" data-cls="dog">dog <kbd>1</kbd></button>
+          <button class="seg-b" data-cls="bowl">bowl <kbd>2</kbd></button>
+          <button class="seg-b" data-cls="person">person <kbd>3</kbd></button>
+        </span>
+        <span class="tally" id="rv-tally"></span>
+        <span class="bar-sp"></span>
+        <button class="btn sm" id="rv-hint" title="re-run the frame at a low threshold">Hint</button>
+        <button class="btn sm" id="rv-del" disabled title="select a box by clicking it in the frame">Delete box</button>
+        <button class="btn sm" id="rv-clear" title="remove all labels from the frame at once">Clear all boxes</button>
+        <button class="btn sm danger" id="rv-drop" title="erase the frame and its labels from disk">Delete frame</button>
+        <button class="btn ghost" id="rv-home" title="leave review and return to live video">Home</button>
+        <button class="btn ghost" id="rv-cancel">Exit <kbd>Esc</kbd></button>
+        <button class="btn go" id="rv-save">Save <kbd>Enter</kbd></button>
+      </div>
+      <div class="bar-msg" id="bar-msg" role="status" aria-live="polite"></div>
+    </div>
+    <div class="legend">
+      <span><i style="background:var(--dog)"></i>dog</span>
+      <span><i style="background:var(--water)"></i>water bowl</span>
+      <span><i style="background:var(--food)"></i>food bowl</span>
+      <span><i style="background:#8A8175"></i>detected bowls</span>
+      <span><i style="background:#6E86A8"></i>person (not followed)</span>
+    </div>
+    <div class="card panes">
+      <div class="tabs" role="tablist" aria-label="logs and model">
+        <button role="tab" id="tb-cam" aria-controls="tp-cam" aria-selected="true" data-tab="cam">Camera feed</button>
+        <button role="tab" id="tb-log" aria-controls="tp-log" aria-selected="false" data-tab="log" tabindex="-1">Logs</button>
+        <button role="tab" id="tb-model" aria-controls="tp-model" aria-selected="false" data-tab="model" tabindex="-1">Model</button>
+        <button role="tab" id="tb-data" aria-controls="tp-data" aria-selected="false" data-tab="data" tabindex="-1">Dataset</button>
+        <span class="tabs-note" id="camlog-n"></span>
+      </div>
+
+      <section role="tabpanel" id="tp-cam" aria-labelledby="tb-cam" tabindex="0">
+        <div class="kfilter" id="cam-kinds"></div>
+        <ul class="feed" id="camlog"></ul>
+      </section>
+
+      <section role="tabpanel" id="tp-log" aria-labelledby="tb-log" tabindex="0" hidden>
+        <div class="ctrls">
+          <span class="seg" role="group" aria-label="level">
+            <button class="seg-b on" data-lvl="">all</button>
+            <button class="seg-b" data-lvl="warning">warning+</button>
+            <button class="seg-b" data-lvl="error">errors only</button>
+          </span>
+          <input type="search" id="log-q" placeholder="search lines" autocomplete="off">
+          <button class="btn sm" id="log-pause" aria-pressed="false">Pause</button>
+          <span class="ctrls-n" id="log-n"></span>
+        </div>
+        <div class="loglist" id="loglist" tabindex="0"><button class="jump" id="log-jump" hidden>▼ new lines</button></div>
+      </section>
+
+      <section role="tabpanel" id="tp-data" aria-labelledby="tb-data" tabindex="0" hidden>
+        <div class="q-head">
+          <span class="seg" role="group" aria-label="order">
+            <button class="seg-b on" data-ord="suspicious">suspicious first</button>
+            <button class="seg-b" data-ord="new">newest first</button>
+          </span>
+          <button class="btn sm" id="q-reload">Refresh</button>
+          <span class="q-stat" id="q-stat"></span>
+        </div>
+        <div class="note" id="q-note"></div>
+        <ul class="queue" id="queue"></ul>
+      </section>
+
+      <section role="tabpanel" id="tp-model" aria-labelledby="tb-model" tabindex="0" hidden>
+        <div class="pane-empty" id="m-wait">detector has not sent its state yet…</div>
+        <div id="m-body" hidden>
+          <div class="grid2">
+            <div class="sub-card"><h3>Model</h3><dl class="kv" id="m-model"></dl></div>
+            <div class="sub-card"><h3>Dataset</h3><dl class="kv" id="m-data"></dl>
+              <div class="prog"><i id="m-prog"></i></div>
+              <div class="prog-t" id="m-prog-t"></div>
+            </div>
+            <div class="sub-card wide"><h3>Last fine-tuning</h3><div id="m-train"></div></div>
+          </div>
+          <div class="acts">
+            <button class="btn go" id="train-go">Start fine-tuning</button>
+            <button class="btn danger" id="clean-go">Clean up junk</button>
+            <span class="acts-why" id="train-why"></span>
+          </div>
+          <div class="confirm" id="train-confirm" hidden></div>
+          <div class="confirm hot" id="clean-confirm" hidden></div>
+          <div class="run" id="train-run" hidden></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <aside class="side">
+    <div class="card">
+      <h2>Drinking today</h2>
+      <div class="count"><b id="n-drinks">—</b><span id="n-total"></span></div>
+      <div class="dbwarn" id="db-warn" hidden></div>
+      <div class="sub">Counts visits and time. The camera does not measure volume.</div>
+      <div class="bouts" id="bouts"></div>
+      <div class="kinds" id="kinds"></div>
+    </div>
+
+    <div class="card">
+      <h2>Camera pan</h2>
+      <div class="row" style="margin-bottom:10px">
+        <span class="lbl" style="font-size:13px">Tilt: <b id="tilt-status" style="color:var(--muted);font-weight:500">—</b></span>
+        <span class="lbl" style="font-size:13px">Patrol: <b id="patrol-status" style="color:var(--muted);font-weight:500">—</b></span>
+        <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="checkbox" id="tilt-unlock"> allow tilt
+        </label>
+      </div>
+      <div class="dpad">
+        <button class="sp"></button>
+        <button data-dir="up" title="up (locked: tilt hold is on)" disabled>↑</button>
+        <button class="sp"></button>
+        <button data-dir="left" title="left">←</button>
+        <button class="sp"></button>
+        <button data-dir="right" title="right">→</button>
+        <button class="sp"></button>
+        <button data-dir="down" title="down (locked: tilt hold is on)" disabled>↓</button>
+        <button class="sp"></button>
+      </div>
+      <button class="btn home-return" id="camera-home" type="button" disabled
+              title="stop searching and return the camera to its home position at the bowls">
+        Return camera to bowls
+      </button>
+    </div>
+
+    <div class="card">
+      <h2>Dog following</h2>
+      <div class="row">
+        <span class="lbl">Pan the camera to follow the dog</span>
+        <button class="sw" id="sw-track" role="switch" aria-checked="false" disabled></button>
+      </div>
+      <div class="hint">
+        Pan only, no tilt, and only for the dog: the camera does not follow people.
+        No dog for three minutes: the patrol sweeps sectors to the right and left,
+        returning to the bowls each time.
+        The camera's built-in tracking is off: it tilts and follows any motion.
+        While the camera is away following the dog, the bowls are out of view and
+        some visits will be missed. Tilt is always held at the reference.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Recent events</h2>
+      <div class="log" id="log"></div>
+    </div>
+  </aside>
+</div>
+
+<!-- The go2rtc player is ES modules, loaded with a CORS check, and go2rtc
+     sends no CORS headers. So both the scripts and the stream go through our
+     server: everything is same-origin, and go2rtc stays closed to other pages. -->
+<script type="module" src="/player/video-stream.js"></script>
+<script type="module" src="/static/dashboard.js"></script>
+</body>
+</html>

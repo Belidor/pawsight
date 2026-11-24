@@ -1,0 +1,6 @@
+# Topic permissions for the broker WITH A PASSWORD (mosquitto/auth.conf and native.conf).
+# There is no anonymous access there at all; the only user is the system itself:
+# the detector, the brain and the CLI use one login from .env (PAWSIGHT_MQTT_USER).
+# Everything the project publishes and subscribes to is under pawsight/ (pawsight/bus.py).
+user pawsight
+topic readwrite pawsight/#

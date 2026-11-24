@@ -1,0 +1,354 @@
+/* Dashboard styles. Moved out of dashboard.html (code review, 2026-11-21). */
+  :root{
+    --bg:#14120E; --panel:#1D1A15; --panel-2:#262119; --edge:#332C21;
+    --ink:#EDE6D9; --muted:#A2988A; --faint:#6E6558;
+    --accent:#E0A063; --accent-dim:#8A5F2E;
+    --ok:#7FBDA0; --warn:#E0B054; --bad:#DE7C63;
+    --water:#63A8E0; --food:#7FBDA0; --dog:#E0A063;
+    --f:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    --m:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg); color:var(--ink); font-family:var(--f);
+    font-size:15px; line-height:1.5; -webkit-font-smoothing:antialiased;
+  }
+  .app{
+    display:grid; grid-template-columns:minmax(0,1fr) 328px;
+    gap:18px; padding:18px; max-width:1500px; margin:0 auto; min-height:100%;
+  }
+  .main{min-width:0}
+
+  /* ---------- header ---------- */
+  header{grid-column:1/-1; display:flex; align-items:baseline; gap:16px; flex-wrap:wrap}
+  h1{font-size:19px; margin:0; letter-spacing:-.01em; font-weight:650}
+  h1 span{color:var(--faint); font-weight:400}
+  .health{display:flex; gap:14px; margin-left:auto; font-size:12.5px; color:var(--muted)}
+  .health a{color:var(--faint); text-decoration:none; border-bottom:1px dotted var(--edge)}
+  .health a:hover{color:var(--accent); border-bottom-color:var(--accent)}
+  .dot{display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:6px; background:var(--faint); vertical-align:middle}
+  .dot.on{background:var(--ok)} .dot.off{background:var(--bad)}
+
+  /* ---------- video ---------- */
+  .stage{position:relative; background:#000; border:1px solid var(--edge); border-radius:6px; overflow:hidden; aspect-ratio:16/9}
+  .stage video-stream,.stage video{width:100%; height:100%; display:block; object-fit:contain}
+  #overlay{position:absolute; inset:0; width:100%; height:100%; pointer-events:none}
+  /* The still frame COVERS the player instead of replacing it: removing
+     video-stream would force go2rtc to renegotiate the stream, and going back
+     to live would cost seconds. */
+  #still{position:absolute; inset:0; width:100%; height:100%; object-fit:contain;
+         background:#000; z-index:2; user-select:none; -webkit-user-drag:none}
+  #shot{position:absolute; inset:0; width:100%; height:100%; z-index:3;
+        cursor:crosshair; touch-action:none}
+  #shot:focus-visible{outline:2px solid var(--accent); outline-offset:-2px}
+  .stage.frozen{box-shadow:inset 0 0 0 2px var(--accent)}
+  .badge{
+    position:absolute; top:10px; left:10px; z-index:4;
+    font-family:var(--m); font-size:11px; letter-spacing:.06em;
+    background:rgba(0,0,0,.62); color:var(--ink);
+    padding:5px 9px; border-radius:4px;
+  }
+  .badge.moving{background:rgba(224,176,84,.9); color:#1A1509}
+  .badge.stale{background:rgba(222,124,99,.9); color:#1A1509}
+  .badge.shot{background:rgba(224,160,99,.92); color:#1A1509}
+
+  /* ---------- panels ---------- */
+  .side{display:flex; flex-direction:column; gap:14px; min-width:0}
+  .card{background:var(--panel); border:1px solid var(--edge); border-radius:6px; padding:14px}
+  .card h2{
+    font-family:var(--m); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--faint); margin:0 0 11px; font-weight:500;
+  }
+
+  /* ---------- counter ---------- */
+  .count{display:flex; align-items:baseline; gap:9px}
+  .count b{font-size:40px; line-height:1; font-weight:650; font-variant-numeric:tabular-nums; color:var(--water)}
+  .count span{color:var(--muted); font-size:14px}
+  .sub{color:var(--faint); font-size:12.5px; margin-top:7px}
+  .bouts{margin-top:11px; display:flex; flex-direction:column; gap:5px; max-height:132px; overflow-y:auto}
+  .bout{display:flex; gap:9px; font-size:13px; font-family:var(--m); color:var(--muted); align-items:center}
+  .bout i{width:3px; height:13px; background:var(--water); border-radius:2px; font-style:normal; flex:none}
+  .bout .t{color:var(--ink)}
+  .bout.conflict i{background:var(--warn)}
+  /* A database failure shows in place of the numbers, not only in the log:
+     the 2026-09-06 incident looked like "the dashboard is broken" for three
+     hours forty minutes, and nothing showed the real cause, lost records. */
+  .dbwarn{margin:6px 0 2px; font-size:12px; color:var(--bad); line-height:1.4}
+  .kinds{display:flex; gap:16px; margin-top:11px; padding-top:11px; border-top:1px solid var(--edge); font-size:12.5px; color:var(--muted)}
+  .kinds b{color:var(--ink); font-variant-numeric:tabular-nums}
+
+  /* ---------- camera control ---------- */
+  .dpad{display:grid; grid-template-columns:repeat(3,1fr); gap:6px; max-width:186px; margin:0 auto}
+  .dpad button{
+    aspect-ratio:1; border:1px solid var(--edge); background:var(--panel-2); color:var(--ink);
+    border-radius:5px; font-size:17px; cursor:pointer; display:grid; place-items:center;
+    transition:background .12s, border-color .12s;
+  }
+  .dpad button:hover:not(:disabled){background:var(--accent-dim); border-color:var(--accent)}
+  .dpad button:active:not(:disabled){background:var(--accent); color:#1A1509}
+  .dpad button:disabled{opacity:.35; cursor:not-allowed}
+  .dpad .sp{visibility:hidden}
+  .dpad button:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  .home-return{width:100%; min-height:44px; margin-top:10px}
+
+  /* ---------- switch ---------- */
+  .row{display:flex; align-items:center; justify-content:space-between; gap:12px}
+  .row .lbl{font-size:14px}
+  .row .hint{color:var(--faint); font-size:12px; margin-top:5px; line-height:1.45}
+  .sw{
+    position:relative; width:46px; height:26px; flex:none; border-radius:13px;
+    background:var(--panel-2); border:1px solid var(--edge); cursor:pointer; padding:0;
+    transition:background .16s, border-color .16s;
+  }
+  .sw::after{
+    content:""; position:absolute; top:2px; left:2px; width:20px; height:20px;
+    border-radius:50%; background:var(--faint); transition:transform .16s, background .16s;
+  }
+  .sw[aria-checked="true"]{background:var(--accent-dim); border-color:var(--accent)}
+  .sw[aria-checked="true"]::after{transform:translateX(20px); background:var(--accent)}
+  .sw:disabled{opacity:.4; cursor:not-allowed}
+  .sw:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+  /* ---------- event log ---------- */
+  .log{display:flex; flex-direction:column; gap:8px; max-height:230px; overflow-y:auto}
+  .ev{font-size:13px; line-height:1.42}
+  .ev .meta{font-family:var(--m); font-size:11px; color:var(--faint)}
+  .ev .txt{color:var(--muted)}
+  .ev .zone{color:var(--accent)}
+
+  /* ---------- tabbed panel under the video ---------- */
+  .panes{margin-top:14px; padding:0}
+  .tabs{display:flex; align-items:center; gap:2px; border-bottom:1px solid var(--edge); padding:0 6px}
+  .tabs [role=tab]{
+    border:0; background:transparent; color:var(--faint); font-family:var(--m);
+    font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; font-weight:500;
+    padding:11px 12px 9px; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px;
+  }
+  .tabs [role=tab]:hover{color:var(--muted)}
+  .tabs [role=tab][aria-selected=true]{color:var(--ink); border-bottom-color:var(--accent)}
+  .tabs [role=tab]:focus-visible{outline:2px solid var(--accent); outline-offset:-2px}
+  .tabs-note{margin-left:auto; padding-right:10px; font-family:var(--m); font-size:10.5px; color:var(--faint)}
+  /* min-height keeps the feed height: without it, switching tabs would make the page jump */
+  .panes [role=tabpanel]{padding:12px 14px 14px; min-height:268px}
+  .panes [role=tabpanel]:focus-visible{outline:2px solid var(--accent); outline-offset:-4px}
+
+  /* ---------- camera feed ---------- */
+  .feed{list-style:none; margin:0; padding:0; max-height:230px; overflow-y:auto; display:flex; flex-direction:column; gap:4px}
+  .feed li{display:grid; grid-template-columns:52px 92px minmax(0,1fr); gap:10px; font-size:13px; line-height:1.4; align-items:baseline}
+  .feed .t{font-family:var(--m); font-size:11.5px; color:var(--faint); font-variant-numeric:tabular-nums}
+  .feed .k{font-family:var(--m); font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; padding:1px 6px; border-radius:3px; text-align:center; white-space:nowrap}
+  .feed .x{color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .feed li.warning .x{color:var(--ink)}
+  .feed li.error .x{color:var(--bad)}
+  .feed li.new{animation:camlog-in .5s ease-out}
+  @keyframes camlog-in{from{background:var(--panel-2)} to{background:transparent}}
+
+  /* Action kind: COLOUR is the action family, FILL is importance.
+     Normal is outlined (dark background, coloured text); what must not be
+     missed while scrolling is solid. Pan shares amber with search on purpose:
+     they are one family (motor commands), the label tells them apart. */
+  .k-search{background:#2A2419; color:var(--accent)} .k-ptz{background:#2A2419; color:var(--accent)}
+  .k-follow{background:#16302A; color:var(--ok)}     .k-edge{background:#33261A; color:var(--warn)}
+  .k-tilt{background:#1C2830; color:var(--water)}    .k-stream{background:#33201B; color:var(--bad)}
+  .k-manual{background:#262119; color:var(--muted)}  .k-brain{background:#262119; color:var(--ink)}
+  .k-dataset{background:var(--ok);     color:#101A16}
+  .k-train{background:var(--accent);   color:#1A1509}
+  .k-error{background:var(--bad);      color:#1A1509}
+
+  /* Kind filter: the same tags, dimmed when off. They double as the legend,
+     so there is no separate legend of kinds. Only kinds seen so far are
+     shown: on a fresh install that is three tags, not eleven. */
+  .kfilter{display:flex; gap:5px; flex-wrap:wrap; margin:0 0 10px}
+  .kfilter .k{cursor:pointer; border:0; font-family:var(--m); font-size:10.5px;
+              letter-spacing:.06em; text-transform:uppercase; padding:2px 7px; border-radius:3px}
+  .kfilter .k.off{opacity:.3}
+  .kfilter .k:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  .pane-empty{color:var(--faint); font-size:13px}
+
+  /* ---------- buttons and toggles (shared by the newer panels) ---------- */
+  /* The shape is borrowed from .dpad on purpose: a second button style on
+     one dashboard makes it two dashboards. */
+  .btn{
+    border:1px solid var(--edge); background:var(--panel-2); color:var(--ink);
+    border-radius:5px; padding:6px 12px; font:inherit; font-size:13px; cursor:pointer;
+    transition:background .12s, border-color .12s;
+  }
+  .btn:hover:not(:disabled){background:var(--accent-dim); border-color:var(--accent)}
+  .btn:active:not(:disabled){background:var(--accent); color:#1A1509}
+  .btn:disabled{opacity:.35; cursor:not-allowed}
+  .btn:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  .btn.sm{padding:3px 9px; font-size:12px}
+  .btn[aria-pressed="true"]{background:var(--accent-dim); border-color:var(--accent)}
+  .seg{display:inline-flex; border:1px solid var(--edge); border-radius:5px; overflow:hidden}
+  .seg-b{
+    border:0; background:var(--panel-2); color:var(--muted); font:inherit; font-size:12.5px;
+    padding:5px 10px; cursor:pointer; border-right:1px solid var(--edge);
+  }
+  .seg-b:last-child{border-right:0}
+  .seg-b.on{background:var(--accent-dim); color:var(--ink)}
+  .seg-b:focus-visible{outline:2px solid var(--accent); outline-offset:-2px}
+
+  /* ---------- raw logs ---------- */
+  .ctrls{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:9px}
+  .ctrls input[type=search]{
+    flex:1 1 160px; min-width:110px; background:var(--panel-2); border:1px solid var(--edge);
+    border-radius:5px; color:var(--ink); font-family:var(--m); font-size:12.5px; padding:5px 9px;
+  }
+  .ctrls input:focus-visible{outline:2px solid var(--accent); outline-offset:-1px}
+  .ctrls-n{margin-left:auto; font-family:var(--m); font-size:10.5px; color:var(--faint)}
+  .loglist{
+    max-height:min(52vh,460px); overflow-y:auto; overflow-x:hidden; background:#100E0B;
+    border:1px solid var(--edge); border-radius:5px; padding:6px 4px 6px 0; position:relative;
+  }
+  .loglist:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+  .lg{
+    display:grid; grid-template-columns:64px 34px 104px minmax(0,1fr); gap:8px;
+    font-family:var(--m); font-size:12px; line-height:1.45; padding:1px 8px 1px 6px;
+    border-left:2px solid transparent;
+  }
+  .lg .t{color:var(--faint); font-variant-numeric:tabular-nums}
+  .lg .n{color:var(--faint); overflow:hidden; text-overflow:ellipsis}
+  /* pre-wrap: a traceback arrives as one record, and its indentation matters */
+  .lg .m{color:var(--muted); white-space:pre-wrap; word-break:break-word}
+  .lg .v{font-weight:600}
+  /* source is the left stripe, level is the line colour */
+  .lg.s-detect{border-left-color:var(--accent)}
+  .lg.s-brain{border-left-color:var(--water)}
+  .lg.s-train{border-left-color:var(--ok)}
+  .lg.l-debug .v,.lg.l-debug .m{color:var(--faint)}
+  .lg.l-info .v{color:var(--faint)}
+  .lg.l-warning .v,.lg.l-warning .m{color:var(--warn)}
+  .lg.l-error .v,.lg.l-error .m,.lg.l-critical .v,.lg.l-critical .m{color:var(--bad)}
+  .lg mark{background:var(--accent-dim); color:var(--ink); border-radius:2px}
+  .jump{
+    position:sticky; bottom:6px; left:50%; transform:translateX(-50%); display:block;
+    border:1px solid var(--accent); background:var(--panel-2); color:var(--accent);
+    border-radius:12px; padding:2px 12px; font:inherit; font-size:12px; cursor:pointer;
+  }
+  .jump[hidden]{display:none}      /* otherwise display:block overrides the attribute */
+
+  /* ---------- "Model" tab ---------- */
+  .grid2{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:12px}
+  .sub-card{background:var(--panel-2); border:1px solid var(--edge); border-radius:5px; padding:11px 12px}
+  .sub-card.wide{grid-column:1/-1}
+  .sub-card h3{
+    font-family:var(--m); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--faint); margin:0 0 9px; font-weight:500;
+  }
+  .kv{display:grid; grid-template-columns:auto minmax(0,1fr); gap:3px 12px; margin:0; font-size:13px}
+  .kv dt{color:var(--faint)}
+  .kv dd{margin:0; font-family:var(--m); font-size:12.5px; color:var(--ink); overflow-wrap:anywhere}
+  .kv dd.dim{color:var(--muted)} .kv dd.ok{color:var(--ok)}
+  .kv dd.warn{color:var(--warn)} .kv dd.bad{color:var(--bad)}
+  .prog{height:5px; background:var(--edge); border-radius:3px; margin-top:10px; overflow:hidden}
+  .prog i{display:block; height:100%; background:var(--accent); width:0; transition:width .3s}
+  .prog i.full{background:var(--ok)}
+  .prog-t{font-size:12px; color:var(--muted); margin-top:5px; line-height:1.45}
+  .verdict{font-family:var(--m); font-size:10.5px; letter-spacing:.06em; padding:1px 7px; border-radius:3px}
+  .verdict.yes{background:var(--ok); color:#101A16}
+  .verdict.no{background:var(--bad); color:#1A1509}
+  .note{font-size:12.5px; color:var(--faint); line-height:1.5; margin-top:9px}
+  .note b{color:var(--warn); font-weight:600}
+  .note code{font-family:var(--m); font-size:12px; color:var(--ink)}
+
+  /* ---------- actions: fine-tuning and cleanup ---------- */
+  .acts{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:14px;
+        padding-top:12px; border-top:1px solid var(--edge)}
+  .acts-why{font-size:12.5px; color:var(--faint)}
+  .btn.danger{border-color:#4A2C22; color:var(--bad)}
+  .btn.danger:hover:not(:disabled){background:#3A241D; border-color:var(--bad)}
+
+  /* Confirmation is an expanding block, not window.confirm: the cost of the
+     action must be SHOWN, not asked as "are you sure?". */
+  .confirm{margin-top:12px; border:1px solid var(--accent-dim); border-radius:5px;
+           background:var(--panel-2); padding:12px}
+  .confirm.hot{border-color:var(--bad)}
+  .confirm h4{margin:0 0 8px; font-size:13.5px; font-weight:600}
+  .confirm p{margin:0 0 8px; font-size:13px; color:var(--muted); line-height:1.5}
+  .confirm .foot{display:flex; gap:9px; align-items:center; flex-wrap:wrap;
+                 margin-top:12px; padding-top:11px; border-top:1px solid var(--edge)}
+  .confirm label{display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--muted)}
+  .keeps{border-left:2px solid var(--ok); padding:2px 0 2px 10px; margin:10px 0;
+         font-size:12.5px; color:var(--muted); line-height:1.55}
+  .keeps b{color:var(--ok); font-weight:600; display:block; margin-bottom:2px}
+  .tg{display:grid; grid-template-columns:auto minmax(0,1fr) auto auto; gap:7px 10px;
+      align-items:baseline; font-size:13px; margin-top:10px}
+  .tg .num{font-family:var(--m); font-size:12.5px; color:var(--muted); text-align:right;
+           font-variant-numeric:tabular-nums; white-space:nowrap}
+  .tg .lbl{color:var(--ink)}
+  .tg .sub{grid-column:2/-1; font-size:12px; color:var(--faint); margin-top:-4px}
+  .tg .blocked{grid-column:2/-1; font-size:12px; color:var(--warn)}
+  .run .el{font-family:var(--m); font-size:24px; color:var(--accent); font-variant-numeric:tabular-nums}
+  .run .tail{margin-top:10px; max-height:170px; overflow-y:auto; background:#100E0B;
+             border:1px solid var(--edge); border-radius:5px; padding:6px 0}
+  .health .train{color:var(--accent)}
+
+  /* ---------- label review queue ---------- */
+  .q-head{display:flex; align-items:center; gap:9px; flex-wrap:wrap; margin-bottom:10px}
+  .q-stat{font-size:12.5px; color:var(--muted)}
+  .q-stat b{color:var(--ink); font-variant-numeric:tabular-nums}
+  .q-stat s{color:var(--warn); text-decoration:none}
+  .queue{list-style:none; margin:0; padding:0; max-height:320px; overflow-y:auto;
+         display:flex; flex-direction:column; gap:3px}
+  .queue li{
+    display:grid; grid-template-columns:34px 118px minmax(0,1fr) auto; gap:10px;
+    align-items:baseline; font-size:13px; padding:4px 7px; border-radius:4px;
+    cursor:pointer; border:1px solid transparent;
+  }
+  .queue li:hover{background:var(--panel-2)}
+  .queue li.on{background:var(--panel-2); border-color:var(--accent)}
+  .queue li.done{opacity:.45}
+  .queue .sc{font-family:var(--m); font-size:11.5px; color:var(--warn); text-align:right;
+             font-variant-numeric:tabular-nums}
+  .queue li.done .sc{color:var(--ok)}
+  .queue .nm{font-family:var(--m); font-size:11.5px; color:var(--faint);
+             overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .queue .wy{color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .queue .kd{font-family:var(--m); font-size:10.5px; color:var(--faint); white-space:nowrap}
+  .hintbox{border:1px dashed var(--ok)}
+  .toast{
+    position:fixed; left:50%; bottom:22px; transform:translateX(-50%);
+    background:var(--panel-2); border:1px solid var(--edge); color:var(--ink);
+    padding:9px 15px; border-radius:6px; font-size:13.5px; z-index:20;
+    box-shadow:0 6px 22px rgba(0,0,0,.5);
+  }
+  .toast.bad{border-color:var(--bad); color:var(--bad)}
+  /* ---------- action bar under the frame ---------- */
+  /* The button lives HERE, not over the frame: the frame is the main thing in
+     this project and must not be covered. In still-frame mode the same bar's
+     content switches to the labelling tools, so the layout does not jump. */
+  .stagebar{display:flex; align-items:center; gap:9px; flex-wrap:wrap; margin-top:10px; min-height:32px}
+  .stagebar .bar-live,.stagebar .bar-edit,.stagebar .bar-review{display:flex; align-items:center; gap:8px; flex-wrap:wrap; width:100%}
+  /* A class selector is more specific than the built-in [hidden]{display:none},
+     so the attribute alone did not hide the bar: on page load the labelling
+     tools showed up together with the capture button. */
+  .stagebar [hidden]{display:none}
+  .bar-hint{color:var(--faint); font-size:12px}
+  .bar-sp{flex:1 1 auto}
+  .bar-msg{width:100%; font-size:12.5px; color:var(--muted); line-height:1.45}
+  .bar-msg b{color:var(--warn); font-weight:600}
+  .bar-msg.bad{color:var(--bad)}
+  .tally{font-family:var(--m); font-size:11.5px; color:var(--muted)}
+  .tally b{color:var(--ink); font-weight:600}
+  .tally s{color:var(--warn); text-decoration:none}
+  .btn.go{border-color:var(--accent-dim); color:var(--accent)}
+  /* Armed "Delete frame": the second press erases the file, so it must look
+     different from the first. */
+  .btn.danger.armed{background:#3A241D; border-color:var(--bad); color:var(--bad)}
+  .btn.ghost{color:var(--muted)}
+  kbd{font-family:var(--m); font-size:10px; color:var(--faint); border:1px solid var(--edge);
+      border-radius:3px; padding:0 3px; margin-left:4px}
+
+  .legend{display:flex; gap:13px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-top:10px}
+  .legend i{display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:5px}
+
+  @media (max-width:900px){
+    .app{grid-template-columns:1fr}
+    .side{order:2}
+    .tabs{overflow-x:auto}
+    .tabs-note{display:none}
+    .panes [role=tabpanel]{min-height:0}
+  }
+  /* animation too: otherwise the raw log would flicker lines during a burst */
+  @media (prefers-reduced-motion:reduce){*{transition:none!important; animation:none!important}}

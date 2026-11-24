@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/png" href="/static/favicon.png">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+<title>pawsight · zones</title>
+<link rel="stylesheet" href="/static/dashboard.css">
+<link rel="stylesheet" href="/static/zones.css">
+</head>
+<body>
+<div class="zapp">
+  <header>
+    <h1>pawsight <span>· zones</span></h1>
+    <div class="health">
+      <a href="/">dashboard</a>
+      <a href="/setup">setup</a>
+    </div>
+  </header>
+
+  <div class="zmain">
+    <div class="stage zstage" id="stage">
+      <img id="frame" alt="detector frame" draggable="false">
+      <canvas id="canvas" tabindex="0" aria-label="zone drawing area"></canvas>
+      <div class="badge" id="badge">loading the detector frame…</div>
+    </div>
+    <div class="zbar" id="drawbar" hidden>
+      <span id="draw-hint" class="bar-hint"></span>
+      <button class="btn" id="draw-undo">Undo point</button>
+      <button class="btn" id="draw-cancel">Cancel</button>
+      <button class="btn primary" id="draw-done" disabled>Finish zone</button>
+    </div>
+    <p class="znote">
+      Click on the frame to place the corners of a zone, then press <b>Finish zone</b>.
+      Draw where the dog's <b>paws</b> stand on the floor: a zone counts the point under
+      the dog, not the whole box around it.
+    </p>
+  </div>
+
+  <aside class="side">
+    <div class="card">
+      <h2>Zones</h2>
+      <ul class="zlist" id="list"></ul>
+      <div class="zadd">
+        <button class="btn" id="add-bowls" title="the zone is stored relative to the bowl pair and moves with the camera">+ Zone that moves with the bowls</button>
+        <button class="btn" id="add-fixed" title="plain frame coordinates: correct only while the camera does not pan">+ Fixed zone</button>
+        <p class="bar-hint" id="add-note"></p>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Telegram</h2>
+      <label class="zcheck"><input type="checkbox" id="notify-outside"> Notify when the dog is outside every zone</label>
+      <p class="bar-hint">Each zone has its own Telegram switch in the list above. Visits are still recorded in the history when the switch is off.</p>
+    </div>
+    <div class="card">
+      <button class="btn primary wide" id="save" disabled>Save zones</button>
+      <p class="bar-hint" id="status"></p>
+    </div>
+  </aside>
+</div>
+<script src="/static/zones.js"></script>
+</body>
+</html>

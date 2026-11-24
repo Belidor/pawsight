@@ -1,0 +1,692 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/png" href="/static/favicon.png">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+<title>pawsight setup</title>
+<!--
+  Palette and fonts match the dashboard (dashboard.html) on purpose: it is
+  one system, not two different tools. There are no external URLs at all: a
+  local tool must work without internet, and a page where the camera
+  password is typed must certainly not load third-party scripts.
+
+  Secrets travel one way here: what is entered goes to go2rtc.yaml and .env
+  and is never shown back. No field on this page is filled with a value
+  received from the server.
+-->
+<style>
+  :root{
+    --bg:#14120E; --panel:#1D1A15; --panel-2:#262119; --edge:#332C21;
+    --ink:#EDE6D9; --muted:#A2988A; --faint:#6E6558;
+    --accent:#E0A063; --accent-dim:#8A5F2E;
+    --ok:#7FBDA0; --warn:#E0B054; --bad:#DE7C63;
+    --water:#63A8E0; --food:#7FBDA0;
+    --f:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    --m:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg); color:var(--ink); font-family:var(--f); font-size:15px;
+       line-height:1.5; -webkit-font-smoothing:antialiased}
+  .wrap{max-width:860px; margin:0 auto; padding:22px 18px 60px}
+
+  header{display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; margin-bottom:6px}
+  h1{font-size:19px; margin:0; letter-spacing:-.01em; font-weight:650}
+  h1 span{color:var(--faint); font-weight:400}
+  .health{display:flex; gap:14px; margin-left:auto; font-size:12.5px; color:var(--muted)}
+  .dot{display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:6px;
+       background:var(--faint); vertical-align:middle}
+  .dot.on{background:var(--ok)} .dot.off{background:var(--bad)}
+  .lede{color:var(--muted); font-size:13.5px; margin:0 0 18px; max-width:66ch}
+
+  .card{background:var(--panel); border:1px solid var(--edge); border-radius:6px;
+        padding:16px 16px 15px; margin-bottom:14px}
+  .card h2{font-family:var(--m); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase;
+           color:var(--faint); margin:0 0 12px; font-weight:500;
+           display:flex; align-items:center; gap:9px}
+  .card h2 b{font-family:var(--f); font-size:13px; letter-spacing:0; text-transform:none;
+             color:var(--ink); font-weight:600}
+  .card h2 .state{margin-left:auto; letter-spacing:0; text-transform:none; font-size:11.5px}
+  .card.done{border-color:#2C4038}
+  .hint{color:var(--faint); font-size:12.5px; line-height:1.5; margin:8px 0 0}
+  .hint b{color:var(--muted); font-weight:600}
+  .note{background:var(--panel-2); border-left:2px solid var(--accent-dim);
+        padding:9px 12px; border-radius:0 4px 4px 0; color:var(--muted);
+        font-size:12.5px; margin:12px 0 0}
+
+  label.fld{display:block; margin:0 0 10px}
+  label.fld span{display:block; font-size:12px; color:var(--muted); margin-bottom:4px}
+  input[type=text],input[type=password],input[type=number]{
+    width:100%; background:var(--panel-2); border:1px solid var(--edge); border-radius:5px;
+    color:var(--ink); font-family:var(--m); font-size:13px; padding:8px 10px}
+  input:focus{outline:2px solid var(--accent); outline-offset:1px; border-color:var(--accent)}
+  .grid{display:grid; grid-template-columns:2fr 1fr; gap:10px}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  @media (max-width:620px){.grid,.grid2{grid-template-columns:1fr}}
+
+  button{font-family:var(--f); font-size:13.5px; padding:8px 14px; border-radius:5px;
+         border:1px solid var(--edge); background:var(--panel-2); color:var(--ink);
+         cursor:pointer; transition:background .12s, border-color .12s}
+  button:hover:not(:disabled){background:var(--accent-dim); border-color:var(--accent)}
+  button:disabled{opacity:.4; cursor:not-allowed}
+  button:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  button.primary{background:var(--accent-dim); border-color:var(--accent)}
+  button.primary:hover:not(:disabled){background:var(--accent); color:#1A1509}
+  .btns{display:flex; gap:9px; flex-wrap:wrap; margin-top:12px; align-items:center}
+
+  .brands{display:flex; flex-wrap:wrap; gap:6px}
+  .brands button{padding:6px 11px; font-size:13px}
+  .brands button[aria-pressed="true"]{background:var(--accent-dim); border-color:var(--accent); color:var(--ink)}
+  #brand-note{margin-top:10px}
+  #brand-note ol{margin:6px 0 0; padding-left:20px}
+  details.adv{margin:4px 0 6px; font-size:13px; color:var(--muted)}
+  details.adv summary{cursor:pointer}
+  .seg{display:inline-flex; border:1px solid var(--edge); border-radius:5px; overflow:hidden}
+  .seg button{border:0; border-radius:0; background:transparent; padding:7px 13px}
+  .seg button[aria-pressed="true"]{background:var(--accent-dim); color:var(--ink)}
+
+  .steps{list-style:none; margin:12px 0 0; padding:0; display:flex; flex-direction:column; gap:6px}
+  .steps li{display:grid; grid-template-columns:16px minmax(0,1fr); gap:9px;
+            font-size:13px; line-height:1.45; color:var(--muted)}
+  .steps i{font-style:normal; text-align:center}
+  .steps li.ok i{color:var(--ok)} .steps li.bad i{color:var(--bad)}
+  .steps li.bad{color:var(--ink)}
+
+  .stage{position:relative; background:#000; border:1px solid var(--edge); border-radius:6px;
+         overflow:hidden; aspect-ratio:16/9; margin-top:4px}
+  .stage video-stream,.stage video{width:100%; height:100%; display:block; object-fit:contain}
+  #overlay{position:absolute; inset:0; width:100%; height:100%; pointer-events:none}
+  .stage .empty{position:absolute; inset:0; display:grid; place-items:center; text-align:center;
+                color:var(--faint); font-size:13px; padding:20px}
+  /* display:grid above overrides the browser stylesheet [hidden]: hide explicitly */
+  .stage .empty[hidden]{display:none}
+
+  pre.log{background:#000; border:1px solid var(--edge); border-radius:5px; padding:10px 12px;
+          font-family:var(--m); font-size:11.5px; color:var(--muted); overflow:auto;
+          max-height:220px; margin:12px 0 0; white-space:pre-wrap; word-break:break-word}
+  .toast{position:fixed; left:50%; bottom:22px; transform:translateX(-50%);
+         background:var(--panel-2); border:1px solid var(--edge); color:var(--ink);
+         padding:9px 15px; border-radius:6px; font-size:13.5px; z-index:20;
+         box-shadow:0 6px 22px rgba(0,0,0,.5); max-width:min(92vw,560px)}
+  .toast.bad{border-color:var(--bad); color:var(--bad)}
+  a{color:var(--accent)}
+  .foot{color:var(--faint); font-size:12.5px; margin-top:20px; line-height:1.55}
+  code{font-family:var(--m); font-size:12px; color:var(--ink); background:var(--panel-2);
+       padding:1px 5px; border-radius:3px}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>pawsight <span>· setup</span></h1>
+    <div class="health">
+      <span><i class="dot" id="d-g2r"></i>go2rtc</span>
+      <span><i class="dot" id="d-det"></i>detector</span>
+    </div>
+  </header>
+  <p class="lede">
+    Fill in what the installer does not know: your camera address, your
+    Telegram bot, and which bowl is the water bowl. This page is reachable
+    only from this machine (127.0.0.1) and is not exposed to the network.
+  </p>
+
+  <div class="card" id="c-warn" hidden>
+    <h2>⚠<b>Setup cannot be done from here</b></h2>
+    <div class="hint" id="warn-text"></div>
+  </div>
+
+  <!-- ------------------------------- camera ------------------------------- -->
+  <div class="card" id="c-cam">
+    <h2>1<b>Camera</b><span class="state" id="s-cam">—</span></h2>
+    <div class="seg" role="group" aria-label="camera type">
+      <button id="t-rtsp" aria-pressed="true">Standard RTSP</button>
+      <button id="t-xiaomi" aria-pressed="false">Xiaomi via P2P</button>
+    </div>
+
+    <div id="pane-rtsp">
+      <p class="hint" style="margin:14px 0 8px">Pick your camera brand: the form fills in the usual port, stream paths and username.</p>
+      <div class="brands" role="group" aria-label="camera brand" id="brands">
+        <button data-brand="tapo">Tapo / TP-Link</button>
+        <button data-brand="reolink">Reolink</button>
+        <button data-brand="hikvision">Hikvision</button>
+        <button data-brand="dahua">Dahua / Amcrest / Lorex</button>
+        <button data-brand="ezviz">EZVIZ</button>
+        <button data-brand="imou">Imou</button>
+        <button data-brand="xiaomi">Xiaomi</button>
+        <button data-brand="other">Other</button>
+      </div>
+      <div class="note" id="brand-note" hidden></div>
+      <div style="margin-top:14px">
+        <div class="grid">
+          <label class="fld"><span>camera network address (see your router's device list or the camera app)</span>
+            <input type="text" id="f-host" placeholder="192.168.1.50" autocomplete="off"></label>
+          <label class="fld"><span>port</span>
+            <input type="number" id="f-port" value="554" min="1" max="65535"></label>
+        </div>
+        <div class="grid2">
+          <label class="fld"><span>main stream path</span>
+            <input type="text" id="f-path" list="paths" placeholder="/stream1" autocomplete="off" spellcheck="false">
+          </label>
+          <label class="fld"><span>substream path (optional, recommended)</span>
+            <input type="text" id="f-subpath" placeholder="/stream2" autocomplete="off" spellcheck="false">
+          </label>
+        </div>
+        <datalist id="paths">
+          <option value="/Streaming/Channels/101">Hikvision</option>
+          <option value="/cam/realmonitor?channel=1&amp;subtype=0">Dahua</option>
+          <option value="/h264Preview_01_main">Reolink</option>
+          <option value="/stream1">Tapo / TP-Link</option>
+        </datalist>
+        <div class="grid2">
+          <label class="fld"><span>username</span>
+            <input type="text" id="f-user" autocomplete="off" spellcheck="false"></label>
+          <label class="fld"><span>camera password</span>
+            <input type="password" id="f-pass" autocomplete="new-password"></label>
+        </div>
+        <p class="hint" style="margin-top:0">
+          The detector needs only 640×360, so a substream noticeably relieves the network
+          and the decoder. It uses the same address, username and password.
+          The password goes only to <code>go2rtc/go2rtc.yaml</code> on this machine
+          (mode 600, listed in <code>.gitignore</code>). It never reaches
+          <code>.env</code>, the logs, the database, or this page again.
+          pawsight does not scan your network or guess addresses: you enter them.
+        </p>
+        <details class="adv">
+          <summary>Paste full URLs instead</summary>
+          <label class="fld" style="margin-top:10px"><span>full main stream URL (the fields above are then ignored)</span>
+            <input type="text" id="f-url" placeholder="rtsp://user:password@192.168.1.50:554/stream1"
+                   autocomplete="off" spellcheck="false"></label>
+          <label class="fld"><span>full substream URL (optional)</span>
+            <input type="text" id="f-sub" placeholder="rtsp://…/stream2" autocomplete="off"
+                   spellcheck="false"></label>
+        </details>
+      </div>
+      <div class="btns">
+        <button id="b-probe">Test address</button>
+        <button id="b-save" class="primary">Test and save</button>
+        <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="checkbox" id="f-force"> save even if the camera did not respond
+        </label>
+      </div>
+      <ul class="steps" id="cam-steps"></ul>
+      <p class="hint" id="cam-next" hidden>Saved. The live picture from the camera is in
+        <a href="#c-bowl">step 2</a> below; it can take a few seconds to start.</p>
+    </div>
+
+    <div id="pane-xiaomi" hidden>
+      <div class="note">
+        This page does not and will not ask for your Mi account password: it is
+        entered only in go2rtc's own WebUI and stays with go2rtc. This page can
+        only open that WebUI and check the result.
+      </div>
+      <ol class="hint" style="margin-top:12px; padding-left:20px; line-height:1.7">
+        <li>Make sure go2rtc is running (indicator in the page header).</li>
+        <li>Open the <a href="http://127.0.0.1:1984" target="_blank" rel="noopener">go2rtc WebUI</a>
+            → <b>Add</b> → <b>Xiaomi</b> → sign in to your Mi account. If the browser
+            first asks for go2rtc's own login, it is in <code>go2rtc/go2rtc.yaml</code>,
+            section <code>api</code> (written by the installer).</li>
+        <li>Come back here: the line below shows whether the account entry appeared.</li>
+        <li>Camera pan needs a separate <b>device</b> token. The button below runs
+            <code>scripts/get_device_token.py</code>: it asks for no password, uses
+            the passToken saved by go2rtc, and does not print the token.</li>
+      </ol>
+      <p class="hint" style="margin-top:12px">
+        <i class="dot" id="d-xiaomi"></i><span id="s-xiaomi">Xiaomi account in go2rtc.yaml: —</span>
+      </p>
+      <div class="btns">
+        <button id="b-token">Get device token</button>
+      </div>
+      <pre class="log" id="token-log" hidden></pre>
+    </div>
+  </div>
+
+  <!-- -------------------------------- bowls ------------------------------- -->
+  <div class="card" id="c-bowl">
+    <h2>2<b>Which bowl is the water bowl</b><span class="state" id="s-bowl">—</span></h2>
+    <p class="hint" style="margin-top:0">
+      The software cannot decide this: the bowls may stand only a few pixels apart,
+      and the dog is much wider than that gap. The VLM tells drinking from eating;
+      left/right is only a second opinion, and a disagreement is stored in the
+      database, not hidden. A mistake here is harmless: you can come back and
+      re-confirm at any time.
+    </p>
+    <div class="stage" id="stage" style="margin-top:12px" hidden>
+      <div id="player-slot" style="width:100%;height:100%"></div>
+      <canvas id="overlay"></canvas>
+      <div class="empty" id="stage-empty">connecting to stream…</div>
+    </div>
+    <p class="hint" id="stage-off">Video appears here once the camera stream is working (step 1).</p>
+    <p class="hint" id="bowl-facts">—</p>
+    <div class="btns">
+      <button id="b-left">Water bowl is the left one</button>
+      <button id="b-right">Water bowl is the right one</button>
+      <button id="b-later">Not sure yet</button>
+    </div>
+    <p class="hint" id="bowl-why"></p>
+  </div>
+
+  <!-- ------------------------------ telegram ------------------------------ -->
+  <div class="card" id="c-tg">
+    <h2>3<b>Telegram</b><span class="state" id="s-tg">—</span></h2>
+    <p class="hint" style="margin-top:0">
+      Without it the system works, but silently: events pile up in the database. Get the
+      token from <b>@BotFather</b> (<code>/newbot</code>) and your ID from <b>@userinfobot</b>.
+      There can be several recipients, comma-separated, and <b>each must message the
+      bot</b> <code>/start</code> first: Telegram does not let a bot start a conversation.
+    </p>
+    <div style="margin-top:12px">
+      <label class="fld"><span>bot token (leave empty to keep the saved one)</span>
+        <input type="password" id="f-tg-token" autocomplete="new-password"></label>
+      <label class="fld"><span>recipients: comma-separated chat_id values</span>
+        <input type="text" id="f-tg-chats" placeholder="11111111, 22222222" autocomplete="off"></label>
+    </div>
+    <div class="btns">
+      <button id="b-tg" class="primary">Test and save</button>
+      <span class="hint" style="margin:0">each recipient gets one test message</span>
+    </div>
+    <ul class="steps" id="tg-steps"></ul>
+  </div>
+
+  <!-- ------------------------------ summary ------------------------------- -->
+  <div class="card">
+    <h2>4<b>Done and remaining</b></h2>
+    <ul class="steps" id="final"></ul>
+    <div class="note" style="margin-top:14px">
+      Metal and the detector's stream reading are not checked from here: the
+      process serving this page has neither torch nor OpenCV. Only
+      <code>.venv/bin/python -m pawsight selftest</code> on the Mac itself shows that.
+      Values from <code>.env</code> are read once at process start, so after
+      saving you need <code>./stop.sh &amp;&amp; ./start.sh</code>.
+    </div>
+    <div class="btns">
+      <button id="b-dash" class="primary">Open dashboard</button>
+    </div>
+  </div>
+
+  <p class="foot">
+    Files this page edits: <code>go2rtc/go2rtc.yaml</code> (camera address and
+    password) and <code>.env</code> (bot token and detector settings), both in
+    <code>.gitignore</code> with mode 600, plus <code>zones.yaml</code> (which
+    bowl is the water bowl). The latter is tracked in the repository: the edit becomes
+    a local change that <code>git status</code> shows. It contains no secrets.
+  </p>
+</div>
+
+<!-- The go2rtc player goes through our own origin, so go2rtc stays closed to
+     other pages, same as on the dashboard. But here it is not loaded right
+     away: on first run go2rtc usually has no stream yet, and a static
+     <script> would give a 502 every time the page opens. -->
+<script type="module">
+(function () {
+  "use strict";
+
+  var state = null;
+  var mounted = false;
+
+  function $(id) { return document.getElementById(id); }
+
+  function toast(msg, bad) {
+    var t = document.createElement("div");
+    t.className = "toast" + (bad ? " bad" : "");
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(function () { t.remove(); }, 4200);
+  }
+
+  // The X-Pawsight header is mandatory: the server requires it on every
+  // mutating request. It is non-standard, so a foreign page cannot send it
+  // without a preflight, and the server does not allow that preflight:
+  // 127.0.0.1 is reachable from any site open in the owner's browser. The
+  // dashboard uses the same trick.
+  function post(path, body) {
+    return fetch(path, {
+      method: "POST",
+      headers: { "content-type": "application/json", "X-Pawsight": "1" },
+      body: JSON.stringify(body || {})
+    }).then(function (r) {
+      return r.json().catch(function () { return { ok: false, msg: "server responded " + r.status }; });
+    });
+  }
+
+  function steps(el, items) {
+    el.innerHTML = "";
+    items.forEach(function (s) {
+      var li = document.createElement("li");
+      li.className = s.ok ? "ok" : "bad";
+      li.innerHTML = '<i>' + (s.ok ? "✓" : "✗") + '</i><span></span>';
+      li.querySelector("span").textContent = s.text;
+      el.appendChild(li);
+    });
+  }
+
+  function busy(btn, on, text) {
+    btn.disabled = on;
+    if (on) { btn.dataset.was = btn.textContent; btn.textContent = text || "checking…"; }
+    else if (btn.dataset.was) { btn.textContent = btn.dataset.was; }
+  }
+
+  // ---------------------------- camera type ----------------------------
+  function pickKind(kind) {
+    $("t-rtsp").setAttribute("aria-pressed", kind === "rtsp" ? "true" : "false");
+    $("t-xiaomi").setAttribute("aria-pressed", kind === "xiaomi" ? "true" : "false");
+    $("pane-rtsp").hidden = kind !== "rtsp";
+    $("pane-xiaomi").hidden = kind !== "xiaomi";
+  }
+  $("t-rtsp").addEventListener("click", function () { pickKind("rtsp"); });
+  $("t-xiaomi").addEventListener("click", function () { pickKind("xiaomi"); });
+
+  // ---------------------------- brand presets ----------------------------
+  // Only what the manufacturers document: port, paths, the usual username and
+  // where to switch RTSP on. The address and password always come from the person.
+  var BRANDS = {
+    tapo: { port: 554, path: "/stream1", sub: "/stream2", user: "",
+      note: "<b>Tapo / TP-Link.</b> The username and password here are NOT your TP-Link cloud account. " +
+        "<ol><li>In the Tapo app open the camera → ⚙ Settings → Advanced Settings → <b>Camera Account</b>.</li>" +
+        "<li>Create a username and password there and enter them below.</li>" +
+        "<li>The camera's address is in the app under Device Info (IP address).</li></ol>" },
+    reolink: { port: 554, path: "/h264Preview_01_main", sub: "/h264Preview_01_sub", user: "admin",
+      note: "<b>Reolink.</b> Newer firmware ships with RTSP turned off. " +
+        "<ol><li>In the Reolink app or client: Settings → Network → Advanced → <b>Server Settings</b> (or Port Settings) → enable <b>RTSP</b>.</li>" +
+        "<li>Use the camera's admin login.</li>" +
+        "<li>If the test says the path is not found on a 4K/H.265 model, try <code>/h265Preview_01_main</code>.</li></ol>" },
+    hikvision: { port: 554, path: "/Streaming/Channels/101", sub: "/Streaming/Channels/102", user: "admin",
+      note: "<b>Hikvision.</b> Use the camera's own admin login (the one for its web page). " +
+        "Channel 101 is the main stream, 102 the substream." },
+    dahua: { port: 554, path: "/cam/realmonitor?channel=1&subtype=0", sub: "/cam/realmonitor?channel=1&subtype=1", user: "admin",
+      note: "<b>Dahua, Amcrest, Lorex</b> and other Dahua-based cameras. Use the camera's admin login. " +
+        "<code>subtype=0</code> is the main stream, <code>subtype=1</code> the substream." },
+    ezviz: { port: 554, path: "/h264/ch1/main/av_stream", sub: "/h264/ch1/sub/av_stream", user: "admin",
+      note: "<b>EZVIZ.</b> The username is <code>admin</code>; the password is usually the 6-letter " +
+        "<b>verification code</b> on the camera's sticker. On some models RTSP must first be enabled " +
+        "in the EZVIZ app (camera settings → LAN Live View / RTSP)." },
+    imou: { port: 554, path: "/cam/realmonitor?channel=1&subtype=0", sub: "/cam/realmonitor?channel=1&subtype=1", user: "admin",
+      note: "<b>Imou.</b> Imou cameras are Dahua-based. The username is <code>admin</code>; the password is " +
+        "the device password or the safety code from the camera's sticker." },
+    other: { port: 554, path: "", sub: "", user: "",
+      note: "<b>Another brand.</b> Look for \"RTSP\" in the camera's manual or settings. Most cameras that " +
+        "support ONVIF also serve RTSP; the free ONVIF Device Manager on a PC can show the exact stream URL, " +
+        "which you can paste under \"Paste full URLs instead\"." },
+  };
+  function pickBrand(name) {
+    document.querySelectorAll("#brands button").forEach(function (b) {
+      b.setAttribute("aria-pressed", b.dataset.brand === name ? "true" : "false");
+    });
+    if (name === "xiaomi") {
+      $("brand-note").hidden = true;
+      pickKind("xiaomi");
+      $("t-xiaomi").focus();
+      return;
+    }
+    var p = BRANDS[name];
+    $("f-port").value = p.port;
+    $("f-path").value = p.path;
+    $("f-subpath").value = p.sub;
+    if (p.user || !$("f-user").value) $("f-user").value = p.user;
+    $("brand-note").innerHTML = p.note;
+    $("brand-note").hidden = false;
+    $("f-host").focus();
+  }
+  document.querySelectorAll("#brands button").forEach(function (b) {
+    b.addEventListener("click", function () { pickBrand(b.dataset.brand); });
+  });
+
+  function form() {
+    var f = {
+      host: $("f-host").value, port: $("f-port").value, path: $("f-path").value,
+      user: $("f-user").value, password: $("f-pass").value, url: $("f-url").value,
+      sub_url: $("f-sub").value, force: $("f-force").checked
+    };
+    // The substream lives at the same address with the same login: only the path differs.
+    if (!f.url && !f.sub_url && $("f-subpath").value.trim()) {
+      f.sub_host = f.host; f.sub_port = f.port; f.sub_path = $("f-subpath").value.trim();
+      f.sub_user = f.user; f.sub_password = f.password;
+    }
+    return f;
+  }
+
+  $("b-probe").addEventListener("click", function () {
+    var b = this;
+    busy(b, true);
+    post("/api/setup/probe", form()).then(function (r) {
+      steps($("cam-steps"), [{ ok: !!r.ok, text: r.msg || "no response" }]);
+    }).finally(function () { busy(b, false); });
+  });
+
+  $("b-save").addEventListener("click", function () {
+    var b = this;
+    busy(b, true, "saving…");
+    post("/api/setup/camera", form()).then(function (r) {
+      if (r.steps) steps($("cam-steps"), r.steps);
+      else steps($("cam-steps"), [{ ok: false, text: r.msg || "not saved" }]);
+      if (r.ok) {
+        // The password stays only in go2rtc.yaml: clear it from the form; the
+        // page will never get it back and cannot show it.
+        $("f-pass").value = "";
+        $("cam-next").hidden = false;
+        toast("Address saved: " + r.masked);
+        refresh();
+      } else {
+        toast(r.msg || "not saved", true);
+      }
+    }).finally(function () { busy(b, false); });
+  });
+
+  $("b-token").addEventListener("click", function () {
+    var b = this, out = $("token-log");
+    busy(b, true, "running…");
+    post("/api/setup/device_token", {}).then(function (r) {
+      out.hidden = false;
+      out.textContent = r.log || r.msg || "no output";
+      if (r.ok) { toast("Device token saved to .env"); refresh(); }
+    }).finally(function () { busy(b, false); });
+  });
+
+  // ------------------------------- bowls -------------------------------
+  function confirmBowl(side) {
+    post("/api/setup/bowls", { side: side }).then(function (r) {
+      if (!r.ok) { toast(r.msg || "not saved", true); return; }
+      toast("Saved: water bowl is the " + (side === "left" ? "left" : "right") +
+            " one. Takes effect after the detector restarts.");
+      refresh();
+    });
+  }
+  $("b-left").addEventListener("click", function () { confirmBowl("left"); });
+  $("b-right").addEventListener("click", function () { confirmBowl("right"); });
+  $("b-later").addEventListener("click", function () {
+    $("bowl-why").textContent = "Nothing saved. Until the bowl is confirmed, " +
+      "left/right comes from the default template: visits are still counted, the VLM " +
+      "decides the visit kind, and a disagreement is flagged in the database with ⚠ on the dashboard.";
+  });
+
+  // ------------------------------ telegram ------------------------------
+  $("b-tg").addEventListener("click", function () {
+    var b = this;
+    busy(b, true, "checking…");
+    post("/api/setup/telegram", { token: $("f-tg-token").value, chats: $("f-tg-chats").value })
+      .then(function (r) {
+        var list = [];
+        if (r.token_ok) list.push({ ok: true, text: "token accepted by Telegram" + (r.bot ? ": bot " + r.bot : "") });
+        if (r.error) list.push({ ok: false, text: r.error });
+        (r.recipients || []).forEach(function (x) {
+          list.push({ ok: x.ok, text: "recipient #" + x.n + ": " + x.reason });
+        });
+        if (r.saved && r.saved.length) {
+          list.push({ ok: true, text: ".env updated: " + r.saved.join(", ") +
+            " (takes effect after ./stop.sh && ./start.sh)" });
+        }
+        steps($("tg-steps"), list.length ? list : [{ ok: false, text: "no response" }]);
+        if (r.token_ok) $("f-tg-token").value = "";
+        refresh();
+      }).finally(function () { busy(b, false); });
+  });
+
+  $("b-dash").addEventListener("click", function () { location.href = "/?dashboard=1"; });
+
+  // ------------------------------- video -------------------------------
+  function mountPlayer() {
+    if (mounted) return;
+    mounted = true;
+    $("stage").hidden = false;
+    $("stage-off").hidden = true;
+    fit();
+    var js = document.createElement("script");
+    js.type = "module";
+    js.src = "/player/video-stream.js";
+    document.head.appendChild(js);
+    customElements.whenDefined("video-stream").then(function () {
+      var el = document.createElement("video-stream");
+      el.mode = "webrtc,mse";
+      el.style.width = "100%";
+      el.style.height = "100%";
+      el.src = location.origin.replace(/^http/, "ws") + "/api/stream?src=dog_cam";
+      $("player-slot").replaceWith(el);
+      $("stage-empty").hidden = true;
+    }).catch(function () { mounted = false; });
+  }
+
+  var cv = $("overlay"), ctx = cv.getContext("2d");
+  function fit() {
+    var r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    cv.width = Math.round(r.width * dpr);
+    cv.height = Math.round(r.height * dpr);
+    drawBowls();
+  }
+  window.addEventListener("resize", fit);
+
+  // Bowls are outlined and labelled right on the video: "left" and "right"
+  // mean their order IN THE FRAME, not how a person stands in the room.
+  function drawBowls() {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    if (!state || !state.bowls) return;
+    var boxes = (state.bowls.anchors || []).filter(Boolean);
+    if (!boxes.length) return;
+    var k = cv.width / ((state.bowls.size || [1280, 720])[0]);
+    var sorted = boxes.slice().sort(function (a, b) { return (a[0] + a[2]) - (b[0] + b[2]); });
+    boxes.forEach(function (b) {
+      ctx.strokeStyle = "#8A8175";
+      ctx.lineWidth = Math.max(1, 1.5 * k);
+      ctx.strokeRect(b[0] * k, b[1] * k, (b[2] - b[0]) * k, (b[3] - b[1]) * k);
+    });
+    if (sorted.length < 2) return;
+    [[sorted[0], "LEFT", "#63A8E0"], [sorted[sorted.length - 1], "RIGHT", "#7FBDA0"]]
+      .forEach(function (pair) {
+        var b = pair[0];
+        ctx.strokeStyle = pair[2];
+        ctx.lineWidth = Math.max(2, 2.5 * k);
+        ctx.strokeRect(b[0] * k, b[1] * k, (b[2] - b[0]) * k, (b[3] - b[1]) * k);
+        var size = (13 * (cv.width / 1280)).toFixed(1);
+        ctx.font = "600 " + size + "px ui-monospace, Menlo, monospace";
+        var w = ctx.measureText(pair[1]).width, h = 17 * (cv.width / 1280);
+        ctx.fillStyle = "rgba(0,0,0,.72)";
+        ctx.fillRect(b[0] * k, b[1] * k - h - 3, w + 10, h);
+        ctx.fillStyle = pair[2];
+        ctx.fillText(pair[1], b[0] * k + 5, b[1] * k - h * 0.28 - 3);
+      });
+  }
+
+  // ------------------------------- status -------------------------------
+  function refresh() {
+    return fetch("/api/setup/state").then(function (r) { return r.json(); }).then(function (s) {
+      state = s;
+      $("d-g2r").className = "dot " + (s.go2rtc.ok ? "on" : "off");
+      $("d-det").className = "dot " + (s.detector.ok ? "on" : "off");
+
+      // 1. camera
+      var cam = s.camera;
+      $("s-cam").textContent = cam.configured
+        ? (cam.kind === "xiaomi" ? "Xiaomi camera" : cam.masked)
+        : "not configured";
+      $("s-cam").style.color = cam.configured ? "var(--ok)" : "var(--warn)";
+      $("c-cam").classList.toggle("done", cam.configured);
+      if (cam.kind === "xiaomi") pickKind("xiaomi");
+      $("d-xiaomi").className = "dot " + (s.xiaomi ? "on" : "off");
+      $("s-xiaomi").textContent = "Xiaomi account in go2rtc.yaml: " + (s.xiaomi ? "found" : "none");
+      $("b-token").disabled = !s.xiaomi;
+
+      // 2. bowls
+      var b = s.bowls;
+      var known = b.side === "left" ? "left" : (b.side === "right" ? "right" : "not set");
+      $("s-bowl").textContent = b.confirmed ? "confirmed: " + known + " (" + b.confirmed + ")"
+                                            : "not confirmed";
+      $("s-bowl").style.color = b.confirmed ? "var(--ok)" : "var(--warn)";
+      $("c-bowl").classList.toggle("done", !!b.confirmed);
+      var facts = [];
+      facts.push("zones.yaml currently says the water bowl is " + known +
+                 (b.confirmed ? ", confirmed " + b.confirmed
+                              : ". That is the default template, not your room"));
+      facts.push(s.detector.ok ? "detector: observations are fresh (" + s.detector.age + " s)"
+                               : "detector: no observations" +
+                                 (s.detector.age === null ? "" : " " + s.detector.age + " s"));
+      facts.push("both bowls visible in frame: " + (b.visible ? "yes" : "no"));
+      $("bowl-facts").textContent = facts.join(" · ");
+      $("b-left").disabled = !b.visible;
+      $("b-right").disabled = !b.visible;
+      if (!b.visible) {
+        $("bowl-why").textContent = "The buttons are locked until both bowls are visible in the frame: " +
+          "a zone exists only together with its anchor, and the bowls count only as a pair. " +
+          "Point the camera at the bowls (you can do it on the dashboard) and come back here.";
+      } else if (!$("bowl-why").textContent) {
+        $("bowl-why").textContent = "";
+      }
+
+      // 3. telegram
+      var tg = s.telegram;
+      $("s-tg").textContent = tg.telegram_token
+        ? "token saved, recipients: " + tg.telegram_chats
+        : "not configured: events go to the database only";
+      $("s-tg").style.color = tg.telegram_token ? "var(--ok)" : "var(--muted)";
+      $("c-tg").classList.toggle("done", !!tg.telegram_token);
+
+      // 4. summary
+      var f = [];
+      f.push({ ok: s.go2rtc.ok, text: s.go2rtc.ok
+        ? "go2rtc responds at " + s.go2rtc.url + "; streams: " + (s.go2rtc.streams.join(", ") || "none")
+        : (s.go2rtc.error || "go2rtc is not responding") });
+      f.push({ ok: cam.configured, text: cam.configured
+        ? "camera address saved: " + (cam.masked || "—") + (cam.sub ? "; substream: " + cam.sub : "")
+        : "camera address not set: step 1" });
+      f.push({ ok: s.detector.ok, text: s.detector.ok
+        ? "detector is sending observations"
+        : "detector is silent: it is started by ./start.sh and runs as a separate process" });
+      f.push({ ok: !!b.confirmed, text: b.confirmed
+        ? "water bowl confirmed (" + known + ", " + b.confirmed + ")"
+        : "water bowl not confirmed: step 2. Not an error: visits are counted, " +
+          "but left/right is still a guess from the template" });
+      f.push({ ok: !!tg.telegram_token, text: tg.telegram_token
+        ? "Telegram configured, recipients: " + tg.telegram_chats
+        : "Telegram not configured: events pile up in the database, which is fine" });
+      if (s.camera.kind === "xiaomi") {
+        f.push({ ok: tg.camera_token, text: tg.camera_token
+          ? "device token for pan is saved"
+          : "no device token: camera pan will not work (step 1, Xiaomi tab)" });
+      }
+      steps($("final"), f);
+
+      if (cam.configured && s.go2rtc.ok) mountPlayer();
+      drawBowls();
+
+      // Nothing can be saved: say so right away, once.
+      var w = s.writable;
+      if (!w.env || !w.go2rtc) {
+        $("c-warn").hidden = false;
+        $("warn-text").textContent =
+          "This process cannot see the config files: the brain runs in a container " +
+          "(PAWSIGHT_STACK=" + s.stack + "), and .env and go2rtc.yaml live on the host and are not " +
+          "mounted into it. Run the setup wizard on the Mac itself: .venv/bin/python -m pawsight setup, " +
+          "or set the camera address with ./install.sh --rtsp '…'.";
+      }
+    }).catch(function () {
+      $("d-g2r").className = "dot off";
+    });
+  }
+
+  fit();
+  refresh();
+  setInterval(refresh, 5000);
+})();
+</script>
+</body>
+</html>

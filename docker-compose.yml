@@ -1,0 +1,71 @@
+# Only the part that is TRULY portable is containerised.
+#
+# Why not everything. Measured and verified on this host:
+#   * Metal/MPS is not available to a Linux guest in Docker Desktop or in Apple
+#     container; Apple's answer has been "not supported" since June 2025;
+#   * inference in a container would run on the CPU: ~90-145 ms/frame vs
+#     10-17 ms on Metal, so the headroom drops from ~19x to 1.5-2x;
+#   * go2rtc must be on the host: the P2P hop to the camera goes over UDP/32108
+#     into the local network, while a container gets the LAN through NAT.
+# So exactly three things stay native: go2rtc, the detector and Ollama.
+# Everything else is here.
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    # With a password if the install has one (mosquitto/passwd is created by
+    # install.sh or `python -m pawsight.authsetup --mqtt`): auth.conf, login
+    # and ACL. Without the file, the old anonymous mosquitto.conf, so that older
+    # installs start as before.
+    command:
+      - sh
+      - -c
+      - >-
+        if [ -f /mosquitto/auth/passwd ]; then
+        exec mosquitto -c /mosquitto/auth/auth.conf;
+        fi;
+        exec mosquitto -c /mosquitto/config/mosquitto.conf
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./mosquitto:/mosquitto/auth:ro
+    ports:
+      # loopback ONLY: the broker is not exposed outside or to the LAN
+      - "127.0.0.1:1883:1883"
+
+  brain:
+    build: .
+    restart: unless-stopped
+    depends_on: [mosquitto]
+    env_file: .env
+    environment:
+      PAWSIGHT_MQTT_HOST: mosquitto
+      # Ollama runs natively on the host for Metal; this is how the container reaches it
+      OLLAMA_URL: http://host.docker.internal:11434
+      # go2rtc is on the host too. The default in the code is native (127.0.0.1);
+      # the container name is set here, not the other way round.
+      GO2RTC_URL: http://host.docker.internal:1984
+      # Inside the container, listen on all interfaces: nothing gets out anyway,
+      # the port is published as 127.0.0.1:8099. A native run stays on
+      # loopback: there 0.0.0.0 would mean a dashboard open to the whole home network.
+      PAWSIGHT_WEB_HOST: 0.0.0.0
+      # Without this the container runs in UTC and notification times are off
+      # by several hours from what the user sees. Set TZ in your environment.
+      TZ: ${TZ:-UTC}
+    ports:
+      # dashboard: loopback only, not exposed
+      - "127.0.0.1:8099:8099"
+    volumes:
+      - ./storage:/app/storage
+      - ./zones.yaml:/app/zones.yaml:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # The limit is required, not hygiene: the container's json log grew without
+    # bound and once already captured the bot token (the httpx logger printed
+    # the full Telegram request URL). The code fixes the leak, but only
+    # recreating the container deletes the old history, and these two lines cap the size.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

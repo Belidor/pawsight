@@ -1,0 +1,41 @@
+diff --git a/pkg/xiaomi/miss/cs2/conn.go b/pkg/xiaomi/miss/cs2/conn.go
+index 1bea07c..be14b5d 100644
+--- a/pkg/xiaomi/miss/cs2/conn.go
++++ b/pkg/xiaomi/miss/cs2/conn.go
+@@ -24,7 +24,10 @@ func Dial(host, transport string) (*Conn, error) {
+ 		Conn:  conn,
+ 		isTCP: isTCP,
+ 		channels: [4]*dataChannel{
+-			newDataChannel(0, 10), nil, newDataChannel(250, 100), nil,
++			// pawsight patch: 100 -> 4096. One 2K HEVC I-frame after a pan is
++			// 200-500 KB = 200-400 chunks and overflowed the 100-chunk queue,
++			// which was fatal and forced a 6-19 s reconnect to the camera.
++			newDataChannel(0, 10), nil, newDataChannel(250, 4096), nil,
+ 		},
+ 	}
+ 	go c.worker()
+@@ -426,6 +429,9 @@ type dataChannel struct {
+ 	waitData []byte
+ 	waitSize int
+ 	popBuf   chan []byte
++
++	dropped   int
++	dropLogAt time.Time
+ }
+ 
+ func (c *dataChannel) Push(b []byte) error {
+@@ -444,7 +450,13 @@ func (c *dataChannel) Push(b []byte) error {
+ 		select {
+ 		case c.popBuf <- c.waitData[:c.waitSize]:
+ 		default:
+-			return fmt.Errorf("pop buffer is full")
++			// pawsight patch: dropping one chunk costs one corrupted frame until
++			// the next keyframe (~2 s); returning an error cost a full reconnect.
++			c.dropped++
++			if now := time.Now(); now.After(c.dropLogAt) {
++				fmt.Printf("cs2: pop buffer full, dropped %d chunks so far\n", c.dropped)
++				c.dropLogAt = now.Add(5 * time.Second)
++			}
+ 		}
+ 
+ 		c.waitData = c.waitData[c.waitSize:]

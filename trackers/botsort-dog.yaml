@@ -1,0 +1,27 @@
+# BoT-SORT for pawsight: the same as the stock botsort.yaml from ultralytics 8.4.141,
+# but without fuse_score. EXPERIMENTAL PROFILE, NOT enabled by default.
+#
+# Why. The tracker only reports confirmed tracks, and with fuse_score confirming
+# a new track requires IoU·conf >= 0.3 between two consecutive frames (without
+# Kalman prediction). After a single frame without a match the track is lost, and a
+# dog with conf < 0.30 never starts a new track at all; with 0.30–0.45 only while
+# standing. In the log this looks like a "flickering dog": following goes blind and
+# the patrol takes the camera away (docs/architecture.md, 2026-09-07, target-loss analysis).
+# Without fuse_score confirmation uses plain IoU (>= 0.3), and weak dog boxes become
+# tracks, at the cost of possible false tracks on objects.
+#
+# To enable: PAWSIGHT_TRACKER=trackers/botsort-dog.yaml in .env and restart the
+# detector. Check against the loss log: the line "follow: dog vanished (... raw dog
+# boxes N, max conf …)" shows whether there are fewer losses while the dog is visible.
+tracker_type: botsort
+track_high_thresh: 0.25
+track_low_thresh: 0.1
+new_track_thresh: 0.25
+track_buffer: 30
+match_thresh: 0.8
+fuse_score: False
+gmc_method: sparseOptFlow
+proximity_thresh: 0.5
+appearance_thresh: 0.8
+with_reid: False
+model: auto
