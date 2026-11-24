@@ -226,7 +226,7 @@ footer a:hover{color:var(--text)}
   <div class="wrap">
     <div class="sh">
       <div><span class="eyebrow">Features</span><h2>Everything you need to keep an eye on your dog.</h2></div>
-      <p>Works with an ordinary camera and a computer at home. Free, no account, no cloud.</p>
+      <p>Works with an ordinary home camera, or just your laptop's webcam. Free, no account, no cloud.</p>
     </div>
     <div class="bento">
       <article class="card bbox s4"><i class="k tl"></i><i class="k tr"></i><i class="k bl"></i><i class="k br"></i><span class="tag">zones <i>4</i></span>
@@ -239,12 +239,15 @@ footer a:hover{color:var(--text)}
       <article class="card bbox s4"><i class="k tl"></i><i class="k tr"></i><i class="k bl"></i><i class="k br"></i><span class="tag" style="left:auto;right:14px">dog <i>0.94</i></span>
         <div class="pic"><img src="img/following.webp" alt="A pan/tilt camera following the dog across the room" loading="lazy"></div>
         <div class="txt"><h3>Works with moving cameras</h3><p>Pan-and-tilt cameras follow the dog around and return to the bowls. Regular cameras work too, with ready settings for Tapo, Reolink, Hikvision, Dahua, EZVIZ and Imou.</p></div></article>
-      <article class="card bbox s3"><i class="k tl"></i><i class="k tr"></i><i class="k bl"></i><i class="k br"></i><span class="tag food">model accepted</span>
+      <article class="card bbox s2"><i class="k tl"></i><i class="k tr"></i><i class="k bl"></i><i class="k br"></i><span class="tag food">model accepted</span>
         <div class="pic"><img src="img/finetune.webp" alt="A grid of training frames and an accepted model" loading="lazy"></div>
         <div class="txt"><h3>Tuned to your dog</h3><p>Train pawsight on photos of your own dog straight from the dashboard. An update is only kept if it recognises your dog better than before.</p></div></article>
-      <article class="card bbox s3"><i class="k tl"></i><i class="k tr"></i><i class="k bl"></i><i class="k br"></i><span class="tag">macOS · Linux</span>
+      <article class="card bbox s2"><i class="k tl"></i><i class="k tr"></i><i class="k bl"></i><i class="k br"></i><span class="tag">macOS · Linux</span>
         <div class="pic"><img src="img/platforms.webp" alt="A Mac laptop and a Linux mini PC running pawsight" loading="lazy"></div>
         <div class="txt"><h3>Mac or Linux</h3><p>Runs on a Mac with Apple Silicon or on a Linux PC. An NVIDIA graphics card helps, but a regular processor is enough for one camera.</p></div></article>
+      <article class="card bbox s2"><i class="k tl"></i><i class="k tr"></i><i class="k bl"></i><i class="k br"></i><span class="tag water">new · webcam</span>
+        <div class="pic"><img src="img/webcam.webp" alt="A laptop webcam watching the dog drink, with pawsight boxes on the screen" loading="lazy"></div>
+        <div class="txt"><h3>No camera? Use your laptop</h3><p>The camera built into your MacBook or any USB webcam works too. Pick it on the setup page, check the test picture, done. No address, no password.</p></div></article>
     </div>
   </div>
 </section>
@@ -302,8 +305,15 @@ footer a:hover{color:var(--text)}
 <span class="p">$</span> ./start.sh
 <span class="c"># dashboard → http://127.0.0.1:8099</span></pre>
       </div>
-      <div class="reqs"><span>Mac with Apple Silicon</span><span>or a Linux PC</span><span>graphics card optional</span><span>most home cameras</span><span>about 10 GB free</span></div>
-      <p class="docs">Step by step with screenshots: <a href="https://github.com/Belidor/pawsight/blob/main/docs/getting-started.md">Getting started</a></p>
+      <div class="reqs"><span>Mac with Apple Silicon</span><span>or a Linux PC</span><span>graphics card optional</span><span>most home cameras or a webcam</span><span>about 10 GB free</span></div>
+      <p class="docs"><a href="#setup-video">Watch the 2-minute walkthrough</a> · Step by step with screenshots: <a href="https://github.com/Belidor/pawsight/blob/main/docs/getting-started.md">Getting started</a></p>
+    </div>
+  </div>
+  <div class="wrap" id="setup-video" style="margin-top:64px">
+    <div class="sh"><div><span class="eyebrow">2-minute walkthrough</span><h2>Install and first setup, start to finish.</h2></div><p>Recorded on a clean Ubuntu machine: the installer, the camera, the water bowl, zones and the live view. The dog is AI-generated; every box comes from pawsight itself.</p></div>
+    <div class="video">
+      <video id="vid2" src="img/setup.mp4" poster="img/setup-poster.webp" preload="none" playsinline muted></video>
+      <button class="play" type="button" id="play2" aria-label="Play the install and setup video"><svg width="28" height="32" viewBox="0 0 28 32" aria-hidden="true"><path d="M0 0l28 16L0 32z" fill="#1a140c"/></svg></button>
     </div>
   </div>
 </section>
@@ -323,6 +333,8 @@ footer a:hover{color:var(--text)}
   document.addEventListener('click',function(e){var a=e.target.closest('[data-ev]');if(a)track(a.dataset.ev)});
   var v=document.getElementById('vid'),p=document.getElementById('play');
   p.addEventListener('click',function(){v.controls=true;v.muted=true;v.play();p.hidden=true;track('demo-play')});
+  var v2=document.getElementById('vid2'),p2=document.getElementById('play2');
+  p2.addEventListener('click',function(){v2.controls=true;v2.muted=true;v2.play();p2.hidden=true;track('setup-play')});
   var c=document.getElementById('copy');
   c.addEventListener('click',function(){
     var t='git clone https://github.com/Belidor/pawsight.git\ncd pawsight && ./install.sh\n./start.sh';
