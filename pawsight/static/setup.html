@@ -86,6 +86,10 @@
   .seg{display:inline-flex; border:1px solid var(--edge); border-radius:5px; overflow:hidden}
   .seg button{border:0; border-radius:0; background:transparent; padding:7px 13px}
   .seg button[aria-pressed="true"]{background:var(--accent-dim); color:var(--ink)}
+  select{width:100%; background:var(--panel-2); border:1px solid var(--edge); border-radius:5px;
+         color:var(--ink); font-family:var(--f); font-size:13px; padding:8px 10px}
+  select:focus{outline:2px solid var(--accent); outline-offset:1px; border-color:var(--accent)}
+  #wc-frame{display:block; max-width:100%; margin-top:12px; border:1px solid var(--edge); border-radius:5px}
 
   .steps{list-style:none; margin:12px 0 0; padding:0; display:flex; flex-direction:column; gap:6px}
   .steps li{display:grid; grid-template-columns:16px minmax(0,1fr); gap:9px;
@@ -144,6 +148,7 @@
     <div class="seg" role="group" aria-label="camera type">
       <button id="t-rtsp" aria-pressed="true">Standard RTSP</button>
       <button id="t-xiaomi" aria-pressed="false">Xiaomi via P2P</button>
+      <button id="t-webcam" aria-pressed="false">Webcam (MacBook / USB)</button>
     </div>
 
     <div id="pane-rtsp">
@@ -156,6 +161,7 @@
         <button data-brand="ezviz">EZVIZ</button>
         <button data-brand="imou">Imou</button>
         <button data-brand="xiaomi">Xiaomi</button>
+        <button data-brand="webcam">MacBook / USB webcam</button>
         <button data-brand="other">Other</button>
       </div>
       <div class="note" id="brand-note" hidden></div>
@@ -240,6 +246,39 @@
         <button id="b-token">Get device token</button>
       </div>
       <pre class="log" id="token-log" hidden></pre>
+    </div>
+
+    <div id="pane-webcam" hidden>
+      <p class="hint" style="margin:14px 0 8px">
+        The camera built into this computer or one plugged in over USB. No address and
+        no password: go2rtc opens it through ffmpeg on this machine. The camera stays on
+        while pawsight runs (its light will be lit), and the computer must not sleep.
+      </p>
+      <div class="grid">
+        <label class="fld"><span>camera</span>
+          <select id="wc-device"><option value="">looking for cameras…</option></select></label>
+        <label class="fld"><span>size</span>
+          <select id="wc-size"></select></label>
+      </div>
+      <p class="hint" id="wc-hint" style="margin-top:0"></p>
+      <div class="btns">
+        <button id="wc-reload">Find cameras again</button>
+        <button id="wc-probe">Test camera</button>
+        <button id="wc-save" class="primary">Test and save</button>
+        <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="checkbox" id="wc-force"> save even if the camera gave no frame
+        </label>
+      </div>
+      <p class="hint">
+        On a Mac the first test makes macOS ask whether the terminal that ran
+        <code>./start.sh</code> may use the camera: allow it. If you said no, turn it on in
+        System Settings → Privacy &amp; Security → Camera and restart pawsight.
+        1280×720 is plenty: the detector looks at 640×360 anyway.
+      </p>
+      <ul class="steps" id="wc-steps"></ul>
+      <img id="wc-frame" alt="test frame from the webcam" hidden>
+      <p class="hint" id="wc-next" hidden>Saved. The live picture is in
+        <a href="#c-bowl">step 2</a> below; it can take a few seconds to start.</p>
     </div>
   </div>
 
@@ -369,14 +408,17 @@
   }
 
   // ---------------------------- camera type ----------------------------
+  var kindPicked = false;
   function pickKind(kind) {
-    $("t-rtsp").setAttribute("aria-pressed", kind === "rtsp" ? "true" : "false");
-    $("t-xiaomi").setAttribute("aria-pressed", kind === "xiaomi" ? "true" : "false");
-    $("pane-rtsp").hidden = kind !== "rtsp";
-    $("pane-xiaomi").hidden = kind !== "xiaomi";
+    ["rtsp", "xiaomi", "webcam"].forEach(function (k) {
+      $("t-" + k).setAttribute("aria-pressed", kind === k ? "true" : "false");
+      $("pane-" + k).hidden = kind !== k;
+    });
+    if (kind === "webcam" && !webcamsLoaded) loadWebcams();
   }
-  $("t-rtsp").addEventListener("click", function () { pickKind("rtsp"); });
-  $("t-xiaomi").addEventListener("click", function () { pickKind("xiaomi"); });
+  ["rtsp", "xiaomi", "webcam"].forEach(function (k) {
+    $("t-" + k).addEventListener("click", function () { kindPicked = true; pickKind(k); });
+  });
 
   // ---------------------------- brand presets ----------------------------
   // Only what the manufacturers document: port, paths, the usual username and
@@ -414,10 +456,11 @@
     document.querySelectorAll("#brands button").forEach(function (b) {
       b.setAttribute("aria-pressed", b.dataset.brand === name ? "true" : "false");
     });
-    if (name === "xiaomi") {
+    if (name === "xiaomi" || name === "webcam") {
       $("brand-note").hidden = true;
-      pickKind("xiaomi");
-      $("t-xiaomi").focus();
+      kindPicked = true;
+      pickKind(name);
+      $("t-" + name).focus();
       return;
     }
     var p = BRANDS[name];
@@ -467,6 +510,72 @@
         $("f-pass").value = "";
         $("cam-next").hidden = false;
         toast("Address saved: " + r.masked);
+        refresh();
+      } else {
+        toast(r.msg || "not saved", true);
+      }
+    }).finally(function () { busy(b, false); });
+  });
+
+  // ------------------------------- webcam -------------------------------
+  var webcamsLoaded = false, webcams = [];
+  function loadWebcams() {
+    webcamsLoaded = true;
+    var sel = $("wc-device");
+    sel.innerHTML = '<option value="">looking for cameras…</option>';
+    $("wc-hint").textContent = "";
+    return fetch("/api/setup/webcams").then(function (r) { return r.json(); }).then(function (r) {
+      webcams = r.devices || [];
+      sel.innerHTML = "";
+      if (!webcams.length) {
+        sel.innerHTML = '<option value="">no cameras found</option>';
+      }
+      webcams.forEach(function (d, i) {
+        var o = document.createElement("option");
+        o.value = String(i);
+        o.textContent = d.name + (d.input_format ? " · " + d.input_format : "");
+        sel.appendChild(o);
+      });
+      var size = $("wc-size");
+      if (!size.options.length) {
+        (r.sizes || []).forEach(function (v) {
+          var o = document.createElement("option");
+          o.value = v; o.textContent = v.replace("x", "×");
+          if (v === (r.default_size || "1280x720")) o.selected = true;
+          size.appendChild(o);
+        });
+      }
+      $("wc-hint").textContent = r.msg || "";
+      $("wc-probe").disabled = $("wc-save").disabled = !webcams.length;
+    }).catch(function () {
+      sel.innerHTML = '<option value="">the page could not ask go2rtc</option>';
+      $("wc-probe").disabled = $("wc-save").disabled = true;
+    });
+  }
+  function webcamForm() {
+    var d = webcams[Number($("wc-device").value)] || {};
+    return { kind: "webcam", device: d.id || "", input_format: d.input_format || "",
+             size: $("wc-size").value, force: $("wc-force").checked };
+  }
+  $("wc-reload").addEventListener("click", loadWebcams);
+  $("wc-probe").addEventListener("click", function () {
+    var b = this;
+    busy(b, true, "waiting for a frame…");
+    $("wc-frame").hidden = true;
+    post("/api/setup/probe", webcamForm()).then(function (r) {
+      steps($("wc-steps"), [{ ok: !!r.ok, text: r.msg || "no response" }]);
+      if (r.frame) { $("wc-frame").src = r.frame; $("wc-frame").hidden = false; }
+    }).finally(function () { busy(b, false); });
+  });
+  $("wc-save").addEventListener("click", function () {
+    var b = this;
+    busy(b, true, "saving…");
+    post("/api/setup/camera", webcamForm()).then(function (r) {
+      if (r.steps) steps($("wc-steps"), r.steps);
+      else steps($("wc-steps"), [{ ok: false, text: r.msg || "not saved" }]);
+      if (r.ok) {
+        $("wc-next").hidden = false;
+        toast("Saved: " + r.masked);
         refresh();
       } else {
         toast(r.msg || "not saved", true);
@@ -601,7 +710,12 @@
         : "not configured";
       $("s-cam").style.color = cam.configured ? "var(--ok)" : "var(--warn)";
       $("c-cam").classList.toggle("done", cam.configured);
-      if (cam.kind === "xiaomi") pickKind("xiaomi");
+      // Open the tab of the configured camera once, not on every refresh:
+      // otherwise the 5 s timer would yank the person off a tab they chose.
+      if (!kindPicked && (cam.kind === "xiaomi" || cam.kind === "webcam")) {
+        kindPicked = true;
+        pickKind(cam.kind);
+      }
       $("d-xiaomi").className = "dot " + (s.xiaomi ? "on" : "off");
       $("s-xiaomi").textContent = "Xiaomi account in go2rtc.yaml: " + (s.xiaomi ? "found" : "none");
       $("b-token").disabled = !s.xiaomi;
@@ -646,7 +760,8 @@
         ? "go2rtc responds at " + s.go2rtc.url + "; streams: " + (s.go2rtc.streams.join(", ") || "none")
         : (s.go2rtc.error || "go2rtc is not responding") });
       f.push({ ok: cam.configured, text: cam.configured
-        ? "camera address saved: " + (cam.masked || "—") + (cam.sub ? "; substream: " + cam.sub : "")
+        ? (cam.kind === "webcam" ? "camera saved: " : "camera address saved: ") +
+          (cam.masked || "—") + (cam.sub ? "; substream: " + cam.sub : "")
         : "camera address not set: step 1" });
       f.push({ ok: s.detector.ok, text: s.detector.ok
         ? "detector is sending observations"
@@ -676,7 +791,7 @@
           "This process cannot see the config files: the brain runs in a container " +
           "(PAWSIGHT_STACK=" + s.stack + "), and .env and go2rtc.yaml live on the host and are not " +
           "mounted into it. Run the setup wizard on the Mac itself: .venv/bin/python -m pawsight setup, " +
-          "or set the camera address with ./install.sh --rtsp '…'.";
+          "or set the camera with ./install.sh --rtsp '…' (or --webcam for a MacBook/USB camera).";
       }
     }).catch(function () {
       $("d-g2r").className = "dot off";

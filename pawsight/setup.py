@@ -24,6 +24,7 @@ import base64
 import hashlib
 import logging
 import os
+import platform
 import re
 import socket
 import ssl
@@ -31,7 +32,7 @@ import stat
 import tempfile
 import time
 from pathlib import Path
-from urllib.parse import quote, unquote, urlsplit
+from urllib.parse import parse_qs, quote, unquote, urlsplit
 
 import yaml
 
@@ -170,6 +171,206 @@ def validate_rtsp_url(url: str) -> str:
             "Fill in the login and password as separate fields and I will encode them myself"
         )
     return url
+
+
+# ------------------------------------------------------------------ webcam
+#
+# A webcam (a MacBook's built-in camera, a USB camera) is not a network
+# device, so there is no address and no password. go2rtc opens it through
+# ffmpeg (`ffmpeg:device?…`: avfoundation on macOS, v4l2 on Linux), encodes
+# it to H.264 and serves it as the same rtsp://127.0.0.1:8554/dog_cam, so the
+# detector, the dashboard and the snapshots do not know the difference.
+#
+# The device list comes from go2rtc itself (/api/ffmpeg/devices) rather than
+# from our own ffmpeg call: what matters is what the go2rtc process sees, with
+# its PATH and, on macOS, its camera permission.
+
+WEBCAM_PREFIX = "ffmpeg:device?"
+# 30 fps is not a tuning knob: avfoundation defaults to 29.97, and the
+# built-in Mac cameras refuse that outright ("Selected framerate (29.970030)
+# is not supported"). Practically every UVC camera does 30.
+WEBCAM_FPS = 30
+WEBCAM_SIZES = ("640x480", "1280x720", "1920x1080")
+WEBCAM_DEFAULT_SIZE = "1280x720"
+# Linux pixel formats in order of preference. MJPEG first: a raw 720p30 stream
+# does not fit into USB 2.0 bandwidth on most cameras, the driver silently
+# drops to 5-10 fps or to 640x480.
+_V4L2_FORMATS = ("mjpeg", "yuyv422")
+_V4L2_DEV = re.compile(r"^/dev/video\d{1,3}$")
+_V4L2_FMT = re.compile(r"^[a-z0-9_]{1,16}$")
+
+
+def is_webcam(url: str) -> bool:
+    return (url or "").startswith(WEBCAM_PREFIX)
+
+
+def _is_mac(system: str | None) -> bool:
+    return (system or platform.system()) == "Darwin"
+
+
+def build_webcam_url(device: str, size: str = WEBCAM_DEFAULT_SIZE,
+                     input_format: str = "", system: str | None = None) -> str:
+    """go2rtc source for a local camera.
+
+    macOS: the device is its avfoundation name ("FaceTime HD Camera") or an
+    index. The name is percent-encoded: go2rtc refuses a source with spaces,
+    and it decodes the query itself. A name, not an index, is what we save
+    from the page: the index shifts when an iPhone (Continuity Camera) or a
+    USB camera shows up.
+
+    Linux: the device is /dev/videoN, and nothing else is accepted, because
+    the value ends up on the ffmpeg command line.
+
+    `#video=h264` because the dashboard player (MSE) and the RTSP consumers
+    want H.264, and a webcam gives raw frames or MJPEG. `#hardware` lets go2rtc
+    pick VideoToolbox / VAAPI and fall back to the CPU by itself.
+    """
+    device = (device or "").strip()
+    if not device:
+        raise SetupError("no camera selected")
+    if size not in WEBCAM_SIZES:
+        raise SetupError(f"unsupported size {size!r}: choose one of {', '.join(WEBCAM_SIZES)}")
+    if len(device) > 128 or any(c in device for c in "\"\r\n\t\\"):
+        raise SetupError("the camera name contains characters ffmpeg cannot take")
+    params = []
+    if _is_mac(system):
+        params.append("video=" + quote(device, safe=""))
+    else:
+        if not _V4L2_DEV.match(device):
+            raise SetupError("on Linux the camera is a device like /dev/video0")
+        params.append("video=" + device)
+        if input_format:
+            if not _V4L2_FMT.match(input_format):
+                raise SetupError("unknown pixel format")
+            params.append("input_format=" + input_format)
+    params += [f"video_size={size}", f"framerate={WEBCAM_FPS}"]
+    return WEBCAM_PREFIX + "&".join(params) + "#video=h264#hardware"
+
+
+def describe_webcam(url: str) -> str:
+    """`ffmpeg:device?video=FaceTime%20HD%20Camera&…` -> `webcam: FaceTime HD Camera, 1280x720`.
+
+    There are no secrets in a webcam source, but the page still gets a label,
+    not the raw source: it is shown in the header and in the summary.
+    """
+    query = (url or "")[len(WEBCAM_PREFIX):].split("#", 1)[0]
+    q = {k: v[0] for k, v in parse_qs(query).items()}
+    name = q.get("video", "?")
+    if name.isdigit():                   # install.sh --webcam: an index, not a name
+        name = f"camera #{int(name) + 1}"
+    size = q.get("video_size", "")
+    return f"webcam: {name}" + (f", {size}" if size else "")
+
+
+def webcam_devices(sources, system: str | None = None) -> list[dict]:
+    """Video cameras from go2rtc's /api/ffmpeg/devices answer.
+
+    go2rtc lists more than cameras: on macOS also "Capture screen N" (the
+    WHOLE SCREEN, which has no business in a dog camera) and microphones; on
+    Linux one row per pixel format of each device, plus ALSA. What is left is
+    one entry per camera:
+    `{"id": name-or-/dev/videoN, "name": …, "input_format": …, "info": …}`.
+    """
+    if isinstance(sources, dict):
+        sources = sources.get("sources")
+    if not isinstance(sources, list):
+        return []
+    mac = _is_mac(system)
+    found: dict[str, dict] = {}
+    for s in sources:
+        if not isinstance(s, dict):
+            continue
+        url, name = str(s.get("url") or ""), str(s.get("name") or "").strip()
+        if not url.startswith(WEBCAM_PREFIX):
+            continue
+        q = {k: v[0] for k, v in parse_qs(
+            url[len(WEBCAM_PREFIX):].split("#", 1)[0], keep_blank_values=True).items()}
+        if "video" not in q:
+            continue                                   # a microphone
+        if mac:
+            if not name or name.lower().startswith("capture screen"):
+                continue
+            found.setdefault(name, {"id": name, "name": name, "input_format": "", "info": ""})
+            continue
+        dev = q["video"]
+        if not _V4L2_DEV.match(dev):
+            continue
+        fmt = q.get("input_format", "")
+        have = found.get(dev)
+        rank = _V4L2_FORMATS.index(fmt) if fmt in _V4L2_FORMATS else len(_V4L2_FORMATS)
+        if have is None or rank < have["_rank"]:
+            found[dev] = {"id": dev, "name": f"{name or 'camera'} ({dev})",
+                          "input_format": fmt, "info": str(s.get("info") or "").strip(),
+                          "_rank": rank}
+    out = list(found.values())
+    for d in out:
+        d.pop("_rank", None)
+    return out
+
+
+def webcam_hint(system: str | None = None) -> str:
+    """What to do when go2rtc sees no cameras. Said once, in one place."""
+    if _is_mac(system):
+        return ("go2rtc sees no cameras. A webcam needs ffmpeg: brew install ffmpeg, "
+                "then ./stop.sh && ./start.sh (go2rtc reads the device list once, at start; "
+                "the same restart is needed after plugging in a USB camera)")
+    return ("go2rtc sees no cameras. A webcam needs ffmpeg (sudo apt install ffmpeg) and "
+            "read access to /dev/video* (sudo usermod -aG video $USER, then log in again); "
+            "then ./stop.sh && ./start.sh. go2rtc reads the device list once, at start")
+
+
+_FF_PREFIX = re.compile(r"^\[[^\]]*@ 0x[0-9a-f]+\]\s*")
+
+
+def go2rtc_frame_error(log_text: str, since_ms: int) -> str:
+    """ffmpeg's own words about why the webcam gave no frame.
+
+    go2rtc's /api/frame.jpeg answers a failed source with 200 and an empty
+    body; the reason ("Cannot open video device", the macOS permission
+    refusal, "Selected framerate … not supported") goes only to its log. The
+    log is served at /api/log as JSON lines; we take the newest error raised
+    after our request started and keep ffmpeg's lines from it. The log holds
+    other streams' sources too, so nothing but that one entry is read, and it
+    is masked anyway.
+    """
+    import json
+
+    found = ""
+    for line in (log_text or "").splitlines():
+        try:
+            e = json.loads(line)
+        except ValueError:
+            continue
+        if not isinstance(e, dict) or e.get("level") != "error":
+            continue
+        if int(e.get("time") or 0) < since_ms:
+            continue
+        err = str(e.get("error") or "")
+        if "exec" in err or "ffmpeg" in err or "device" in err:
+            found = err
+    if not found:
+        return ""
+    out: list[str] = []
+    for ln in found.splitlines()[1:] or found.splitlines():
+        ln = _FF_PREFIX.sub("", ln.strip())
+        if ln and ln not in out:
+            out.append(ln)
+    return mask_secrets("; ".join(out[:3]))[:300]
+
+
+def webcam_failure(text: str, system: str | None = None) -> str:
+    """go2rtc's answer to a failed frame request, made readable."""
+    text = mask_secrets(" ".join((text or "").split()))[:300]
+    if _is_mac(system):
+        why = ("If macOS asked whether the terminal may use the camera, allow it; otherwise "
+               "check System Settings → Privacy & Security → Camera for the app that ran "
+               "./start.sh (Terminal, iTerm…), then ./stop.sh && ./start.sh. "
+               "Another app holding the camera, or a size the camera does not support, "
+               "fail the same way: try another size")
+    else:
+        why = ("Check that the user running go2rtc may read the device (group video), "
+               "that no other program holds the camera, and try another size")
+    return f"the webcam gave no frame ({text or 'no details'}). {why}"
 
 
 # -------------------------------------------------------------- camera probe

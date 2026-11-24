@@ -50,6 +50,28 @@ or through the **setup** link in the dashboard header.
 If you already have a full `rtsp://` URL, open **Paste full URLs instead** and
 paste it there.
 
+### The MacBook's camera or a USB webcam
+
+No IP camera? The computer's own camera or a USB webcam works too. Open the
+**Webcam (MacBook / USB)** tab (or press the **MacBook / USB webcam** brand
+button):
+
+1. **Pick the camera.** The list is what go2rtc sees on this machine. If it is
+   empty, install ffmpeg (`brew install ffmpeg`, or `sudo apt install ffmpeg`)
+   and restart: `./stop.sh && ./start.sh`. `./install.sh --webcam` does all of
+   this for you.
+2. **Keep 1280×720** unless the test fails: the detector looks at 640×360
+   anyway, and some cameras do not offer every size.
+3. Press **Test camera**. The page asks go2rtc for one frame and shows it. On a
+   Mac this is the moment macOS asks whether your terminal may use the camera:
+   allow it. Said no by mistake? System Settings → Privacy & Security → Camera,
+   then `./stop.sh && ./start.sh`.
+4. Press **Test and save.** There is no password to store: the camera is saved
+   in `go2rtc/go2rtc.yaml` as an `ffmpeg:device?…` source.
+
+The camera stays on while pawsight runs, and the computer must not go to
+sleep. Place it so it sees both bowls (step 2 below needs them in the frame).
+
 ### A Xiaomi pan/tilt camera (P2P, no RTSP)
 
 ![Xiaomi tab](images/setup-xiaomi.png)
