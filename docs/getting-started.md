@@ -5,7 +5,7 @@ sends you Telegram messages and counts visits to the places you care about.
 Everything happens in the browser on the machine that runs pawsight. The pages
 are only reachable from that machine (`127.0.0.1`).
 
-The screenshots below were taken on a test frame, not a real room.
+The zone screenshots below use a generated picture of a room, not a real home.
 
 ## 0. Install and start
 
@@ -90,7 +90,7 @@ Open **zones** in the dashboard header (`http://127.0.0.1:8099/zones`). The page
 shows the latest frame the detector saw, the zones it knows and the bowls it
 found.
 
-![Drawing a zone](images/zones-draw.png)
+![Drawing a zone](images/zones-draw.jpg)
 
 1. Choose the kind of zone:
    - **Zone that moves with the bowls**: the zone is stored relative to the bowl
@@ -104,7 +104,7 @@ found.
    Backspace remove the last corner; Escape cancels.
 4. Name the zone in the list on the right.
 
-![Zones after saving](images/zones-saved.png)
+![Zones after saving](images/zones-saved.jpg)
 
 ### Choose what reaches Telegram
 
