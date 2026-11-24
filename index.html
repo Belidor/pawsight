@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>pawsight · local dog monitoring, no cloud</title>
-<meta name="description" content="pawsight watches your home camera, counts every drink and meal, and tells you in Telegram. Open source, offline, on Mac and Linux.">
+<meta name="description" content="Connect a home camera and pawsight keeps count of every drink and meal. You get a message in Telegram, and all video stays on your own Mac or Linux computer.">
 <meta name="theme-color" content="#14120E">
 <link rel="canonical" href="https://pawsight.belidor.cc/">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://pawsight.belidor.cc/">
 <meta property="og:title" content="pawsight · local dog monitoring, no cloud">
-<meta property="og:description" content="Counts your dog's drinks and meals from a home camera and tells you in Telegram. Open source, runs offline on Mac and Linux.">
+<meta property="og:description" content="Connect a home camera and pawsight keeps count of every drink and meal. You get a message in Telegram, and all video stays on your own Mac or Linux computer.">
 <meta property="og:image" content="https://pawsight.belidor.cc/img/og.jpg">
 <meta property="og:image:width" content="1280">
 <meta property="og:image:height" content="640">
@@ -21,6 +21,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+
 <!-- Cloudflare Web Analytics --><script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "9290a043247b4b30aadbba1bd0be8da9"}'></script><!-- End Cloudflare Web Analytics -->
 <style>
 /* Header from A (cinematic photo hero); features from B (detector boxes, pipeline) in C's bento layout */
@@ -108,7 +109,7 @@ section{padding-block:88px}
 .s3 img{aspect-ratio:16/9;height:auto}
 .card.quote{justify-content:flex-end;padding:28px 24px;background:radial-gradient(110% 90% at 0% 0%,rgba(224,160,99,.2),transparent 60%),var(--panel)}
 .card.quote p{font:700 30px/1.1 var(--display);color:var(--text);letter-spacing:-.02em}
-.card.quote small{display:block;margin-top:12px;font:12px/1.5 var(--mono);color:var(--muted)}
+.card.quote small{display:block;margin-top:12px;font:14px/1.55 var(--body);color:var(--muted)}
 @media (max-width:880px){.s4,.s2,.s3{grid-column:span 6}.card img{aspect-ratio:16/9;height:auto}.card.quote{min-height:200px}}
 
 /* pipeline (B) */
@@ -195,11 +196,11 @@ footer a:hover{color:var(--text)}
   <div class="hero-img" role="img" aria-label="A dog drinking from a bowl, outlined by pawsight's zones"></div>
   <div class="wrap">
     <div class="hero-copy">
-      <div class="meta"><span class="chip amber">● drank · 40 s</span><span class="chip">open source · AGPL-3.0</span></div>
-      <h1>Know how your dog drinks and eats. <em>Without the cloud.</em></h1>
-      <p class="lead">pawsight watches an ordinary home camera, counts every visit to the water and food bowls, and tells you in Telegram. It runs on your own Mac or Linux box, offline.</p>
+      <div class="meta"><span class="chip amber">● drank · 40 s</span><span class="chip">free · open source</span></div>
+      <h1>Your dog’s water and food, tracked automatically. <em>Privately.</em></h1>
+      <p class="lead">Connect a home camera and pawsight keeps count of every drink and meal. You get a message in Telegram, and all video stays on your own Mac or Linux computer.</p>
       <div class="cta">
-        <a class="btn primary" href="#install" data-ev="cta-install">Install in one command</a>
+        <a class="btn primary" href="#install" data-ev="cta-install">Install pawsight</a>
         <a class="btn ghost" href="#demo">Watch the demo</a>
       </div>
     </div>
@@ -210,26 +211,26 @@ footer a:hover{color:var(--text)}
 <section id="features">
   <div class="wrap">
     <div class="sh">
-      <div><span class="eyebrow">Features</span><h2>What pawsight sees for you.</h2></div>
-      <p>A camera you own, a computer you own and a Telegram chat. No account, no subscription, no upload.</p>
+      <div><span class="eyebrow">Features</span><h2>Everything you need to keep an eye on your dog.</h2></div>
+      <p>Works with an ordinary camera and a computer at home. Free, no account, no cloud.</p>
     </div>
     <div class="bento">
       <article class="card bbox s4"><i class="k tl"></i><i class="k tr"></i><i class="k bl"></i><i class="k br"></i><span class="tag">zones <i>4</i></span>
         <div class="pic"><img src="img/zones-art.webp" alt="Drawing a rug zone next to the water and food bowl zones" loading="lazy" width="1600" height="800"></div>
-        <div class="txt"><h3>Zones you draw yourself</h3><p>Mark the rug, the door, the kitchen in the browser. Zones are anchored to the bowls, so they follow a pan/tilt camera, and each one has its own Telegram switch.</p></div></article>
+        <div class="txt"><h3>Your own zones</h3><p>Outline any area on the camera image: a bed, a rug, the doorway. Turn notifications on or off for each one, so you only hear about what you care about. Zones stay in place even when the camera turns.</p></div></article>
       <article class="card bbox s2"><i class="k tl"></i><i class="k tr"></i><i class="k bl"></i><i class="k br"></i><span class="tag water">drank <i>40 s</i></span>
         <div class="pic"><img src="img/telegram.webp" alt="A phone with a Telegram message about a drink" loading="lazy" style="object-position:center 25%"></div>
-        <div class="txt"><h3>Telegram, not an app</h3><p>“🐕 drank — 40 s” in your own chat, and a fresh frame on <code>/snap</code>.</p></div></article>
-      <article class="card s2 quote"><p>Drinks and meals, counted.</p><small>Every bowl visit is timed. A local vision model tells drinking from eating. Visits and time, never made-up millilitres.</small></article>
+        <div class="txt"><h3>Notifications in Telegram</h3><p>Each drink or meal becomes a one-line message with how long it took. Type <code>/snap</code> any time to get a live photo.</p></div></article>
+      <article class="card s2 quote"><p>Drinking and eating, measured.</p><small>Each bowl visit is saved with its length. pawsight tells a drink from a meal, so you can see how often your dog drinks and spot changes early.</small></article>
       <article class="card bbox s4"><i class="k tl"></i><i class="k tr"></i><i class="k bl"></i><i class="k br"></i><span class="tag" style="left:auto;right:14px">dog <i>0.94</i></span>
         <div class="pic"><img src="img/following.webp" alt="A pan/tilt camera following the dog across the room" loading="lazy"></div>
-        <div class="txt"><h3>Follows the dog</h3><p>Pan/tilt Xiaomi cameras keep the dog in frame and return to the bowls. Any RTSP camera works, with presets for Tapo, Reolink, Hikvision, Dahua, EZVIZ and Imou.</p></div></article>
+        <div class="txt"><h3>Works with moving cameras</h3><p>Pan-and-tilt cameras follow the dog around and return to the bowls. Regular cameras work too, with ready settings for Tapo, Reolink, Hikvision, Dahua, EZVIZ and Imou.</p></div></article>
       <article class="card bbox s3"><i class="k tl"></i><i class="k tr"></i><i class="k bl"></i><i class="k br"></i><span class="tag food">model accepted</span>
         <div class="pic"><img src="img/finetune.webp" alt="A grid of training frames and an accepted model" loading="lazy"></div>
-        <div class="txt"><h3>Learns your dog</h3><p>Fine-tune the detector from the dashboard. An acceptance gate refuses a model that does worse than the one you have.</p></div></article>
+        <div class="txt"><h3>Tuned to your dog</h3><p>Train pawsight on photos of your own dog straight from the dashboard. An update is only kept if it recognises your dog better than before.</p></div></article>
       <article class="card bbox s3"><i class="k tl"></i><i class="k tr"></i><i class="k bl"></i><i class="k br"></i><span class="tag">macOS · Linux</span>
         <div class="pic"><img src="img/platforms.webp" alt="A Mac laptop and a Linux mini PC running pawsight" loading="lazy"></div>
-        <div class="txt"><h3>Runs on what you have</h3><p>Metal on Apple Silicon, CUDA with an NVIDIA GPU, or just the CPU for one camera.</p></div></article>
+        <div class="txt"><h3>Mac or Linux</h3><p>Runs on a Mac with Apple Silicon or on a Linux PC. An NVIDIA graphics card helps, but a regular processor is enough for one camera.</p></div></article>
     </div>
   </div>
 </section>
@@ -237,29 +238,29 @@ footer a:hover{color:var(--text)}
 <section id="how" style="padding-top:0">
   <div class="wrap">
     <div class="sh">
-      <div><span class="eyebrow">How it works</span><h2>Six steps, one machine, zero uploads.</h2></div>
-      <p>Video, frames and the database stay on your computer. Every service listens on loopback, and the Telegram bot polls out, so no port is ever opened to the internet.</p>
+      <div><span class="eyebrow">How it works</span><h2>What happens behind the scenes.</h2></div>
+      <p>Everything is processed on your own computer. Nothing leaves your home except the short message to your phone.</p>
     </div>
     <div class="pipe">
-      <div><small>input</small><b>camera</b><span>RTSP or Xiaomi P2P</span></div>
-      <div><small>bridge</small><b>go2rtc</b><span>native, local only</span></div>
-      <div><small>detect</small><b>YOLO</b><span>+ BoT-SORT tracking</span></div>
-      <div><small>place</small><b>zones</b><span>anchored to bowls</span></div>
-      <div><small>judge</small><b>local VLM</b><span>drinking or eating</span></div>
-      <div><small>output</small><b>Telegram</b><span>+ SQLite, dashboard</span></div>
+      <div><small>1</small><b>Camera</b><span>records the room</span></div>
+      <div><small>2</small><b>Detection</b><span>finds the dog and bowls</span></div>
+      <div><small>3</small><b>Zones</b><span>knows where the dog is</span></div>
+      <div><small>4</small><b>Check</b><span>drink or meal</span></div>
+      <div><small>5</small><b>Diary</b><span>saves each visit</span></div>
+      <div><small>6</small><b>Telegram</b><span>sends you a message</span></div>
     </div>
     <div class="facts">
-      <div><strong>0</strong><span>ports open to the internet</span></div>
-      <div><strong>0</strong><span>frames uploaded anywhere</span></div>
-      <div><strong>17.8 ms</strong><span>per frame on Apple Silicon</span></div>
-      <div><strong>AGPL</strong><span>every line is open</span></div>
+      <div><strong>0</strong><span>videos sent online</span></div>
+      <div><strong>0</strong><span>subscriptions</span></div>
+      <div><strong>1</strong><span>command to install</span></div>
+      <div><strong>100%</strong><span>open source</span></div>
     </div>
   </div>
 </section>
 
 <section id="demo" class="demo">
   <div class="wrap">
-    <div class="sh"><div><span class="eyebrow">95-second demo</span><h2>See the dashboard at work.</h2></div><p>Zones, a drink, a Telegram message and the camera following the dog, recorded on the real dashboard.</p></div>
+    <div class="sh"><div><span class="eyebrow">Demo</span><h2>A 95-second tour.</h2></div><p>The real dashboard: drawing zones, a dog at the bowl, the Telegram message and the camera following along.</p></div>
     <div class="video">
       <video id="vid" src="img/demo.mp4" poster="img/poster.webp" preload="none" playsinline muted></video>
       <button class="play" type="button" id="play" aria-label="Play the demo video"><svg width="28" height="32" viewBox="0 0 28 32" aria-hidden="true"><path d="M0 0l28 16L0 32z" fill="#1a140c"/></svg></button>
@@ -271,12 +272,12 @@ footer a:hover{color:var(--text)}
   <div class="wrap install">
     <div>
       <span class="eyebrow">Install</span>
-      <h2>One command, then the browser.</h2>
-      <p>The installer sets up Python, the models and the camera bridge, then checks itself. If it stops halfway, run it again.</p>
+      <h2>Up and running in one evening.</h2>
+      <p>The installer handles the technical part and tells you if anything is missing. If it stops halfway, just run it again.</p>
       <ol class="steps">
-        <li><div><b>Run the installer</b><span>On an Apple Silicon Mac or on Debian/Ubuntu.</span></div></li>
-        <li><div><b>Open the setup page</b><span>Camera address, Telegram bot, and which bowl holds water. Secrets stay on your machine.</span></div></li>
-        <li><div><b>Draw your zones</b><span>Then leave it running. Messages start with the first drink.</span></div></li>
+        <li><div><b>Install</b><span>Copy the command, paste it into Terminal, press Enter.</span></div></li>
+        <li><div><b>Set up</b><span>Open the setup page in your browser and add your camera and Telegram bot.</span></div></li>
+        <li><div><b>Mark zones</b><span>Draw the areas you care about. Notifications start right away.</span></div></li>
       </ol>
     </div>
     <div>
@@ -287,15 +288,8 @@ footer a:hover{color:var(--text)}
 <span class="p">$</span> ./start.sh
 <span class="c"># dashboard → http://127.0.0.1:8099</span></pre>
       </div>
-      <div class="reqs"><span>Apple Silicon</span><span>Linux x86_64 / aarch64</span><span>CUDA or CPU</span><span>any RTSP camera</span><span>~10 GB disk</span></div>
-      <p class="docs"><a href="#setup-video">Watch the 2-minute walkthrough</a> · Step by step with screenshots: <a href="https://github.com/Belidor/pawsight/blob/main/docs/getting-started.md">Getting started</a></p>
-    </div>
-  </div>
-  <div class="wrap" id="setup-video" style="margin-top:64px">
-    <div class="sh"><div><span class="eyebrow">2-minute walkthrough</span><h2>Install and first setup, start to finish.</h2></div><p>Recorded on a clean Ubuntu machine: the installer, the camera, the water bowl, zones and the live view. The dog is AI-generated; every box comes from pawsight itself.</p></div>
-    <div class="video">
-      <video id="vid2" src="img/setup.mp4" poster="img/setup-poster.webp" preload="none" playsinline muted></video>
-      <button class="play" type="button" id="play2" aria-label="Play the install and setup video"><svg width="28" height="32" viewBox="0 0 28 32" aria-hidden="true"><path d="M0 0l28 16L0 32z" fill="#1a140c"/></svg></button>
+      <div class="reqs"><span>Mac with Apple Silicon</span><span>or a Linux PC</span><span>graphics card optional</span><span>most home cameras</span><span>about 10 GB free</span></div>
+      <p class="docs">Step by step with screenshots: <a href="https://github.com/Belidor/pawsight/blob/main/docs/getting-started.md">Getting started</a></p>
     </div>
   </div>
 </section>
@@ -305,8 +299,8 @@ footer a:hover{color:var(--text)}
     <div class="support">
       <div>
         <span class="eyebrow">Support the project</span>
-        <h2>Built by one person and one thirsty dog.</h2>
-        <p>pawsight is free and stays free. If it helps you look after your dog, a coffee keeps the evenings going. Next up: several cameras in one dashboard and drinking trends with an alert when something changes.</p>
+        <h2>Free, and kept that way by people like you.</h2>
+        <p>pawsight is built in spare time by one developer and tested on one thirsty dog. Donations pay for test cameras and new features: several cameras in one dashboard, and an alert when drinking habits change.</p>
       </div>
       <div class="donate">
         <a href="https://buymeacoffee.com/belid0r" data-ev="donate-bmc"><span><b>Buy Me a Coffee</b><small>Cards and PayPal, worldwide</small></span><span aria-hidden="true">→</span></a>
@@ -330,8 +324,6 @@ footer a:hover{color:var(--text)}
   document.addEventListener('click',function(e){var a=e.target.closest('[data-ev]');if(a)track(a.dataset.ev)});
   var v=document.getElementById('vid'),p=document.getElementById('play');
   p.addEventListener('click',function(){v.controls=true;v.muted=true;v.play();p.hidden=true;track('demo-play')});
-  var v2=document.getElementById('vid2'),p2=document.getElementById('play2');
-  p2.addEventListener('click',function(){v2.controls=true;v2.muted=true;v2.play();p2.hidden=true;track('setup-play')});
   var c=document.getElementById('copy');
   c.addEventListener('click',function(){
     var t='git clone https://github.com/Belidor/pawsight.git\ncd pawsight && ./install.sh\n./start.sh';
