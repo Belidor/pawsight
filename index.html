@@ -288,7 +288,14 @@ footer a:hover{color:var(--text)}
 <span class="c"># dashboard → http://127.0.0.1:8099</span></pre>
       </div>
       <div class="reqs"><span>Apple Silicon</span><span>Linux x86_64 / aarch64</span><span>CUDA or CPU</span><span>any RTSP camera</span><span>~10 GB disk</span></div>
-      <p class="docs">Step by step with screenshots: <a href="https://github.com/Belidor/pawsight/blob/main/docs/getting-started.md">Getting started</a></p>
+      <p class="docs"><a href="#setup-video">Watch the 2-minute walkthrough</a> · Step by step with screenshots: <a href="https://github.com/Belidor/pawsight/blob/main/docs/getting-started.md">Getting started</a></p>
+    </div>
+  </div>
+  <div class="wrap" id="setup-video" style="margin-top:64px">
+    <div class="sh"><div><span class="eyebrow">2-minute walkthrough</span><h2>Install and first setup, start to finish.</h2></div><p>Recorded on a clean Ubuntu machine: the installer, the camera, the water bowl, zones and the live view. The dog is AI-generated; every box comes from pawsight itself.</p></div>
+    <div class="video">
+      <video id="vid2" src="img/setup.mp4" poster="img/setup-poster.webp" preload="none" playsinline muted></video>
+      <button class="play" type="button" id="play2" aria-label="Play the install and setup video"><svg width="28" height="32" viewBox="0 0 28 32" aria-hidden="true"><path d="M0 0l28 16L0 32z" fill="#1a140c"/></svg></button>
     </div>
   </div>
 </section>
@@ -323,6 +330,8 @@ footer a:hover{color:var(--text)}
   document.addEventListener('click',function(e){var a=e.target.closest('[data-ev]');if(a)track(a.dataset.ev)});
   var v=document.getElementById('vid'),p=document.getElementById('play');
   p.addEventListener('click',function(){v.controls=true;v.muted=true;v.play();p.hidden=true;track('demo-play')});
+  var v2=document.getElementById('vid2'),p2=document.getElementById('play2');
+  p2.addEventListener('click',function(){v2.controls=true;v2.muted=true;v2.play();p2.hidden=true;track('setup-play')});
   var c=document.getElementById('copy');
   c.addEventListener('click',function(){
     var t='git clone https://github.com/Belidor/pawsight.git\ncd pawsight && ./install.sh\n./start.sh';
