@@ -45,6 +45,11 @@ VLM → SQLite and Telegram. Not a single port is exposed to the outside.
 
 You need a Mac on Apple Silicon or a Linux machine (Debian/Ubuntu; an NVIDIA GPU helps but is not required). One command from scratch, then you only grant permissions:
 
+[![Watch the install and first setup, start to finish (2 min 20 s)](docs/images/setup-walkthrough.jpg)](https://pawsight.belidor.cc/#setup-video)
+
+*The whole install and first setup in 2 minutes 20 seconds, recorded on a clean Ubuntu machine: the installer, the camera, the water bowl, zones and the live view. The dog in the clip is AI-generated; every box comes from pawsight itself. [Watch it](https://pawsight.belidor.cc/#setup-video) or [download the MP4](https://pawsight.belidor.cc/img/setup.mp4).*
+
+
 ```bash
 git clone https://github.com/Belidor/pawsight.git && cd pawsight && ./install.sh --rtsp 'rtsp://LOGIN:PASSWORD@ADDRESS:554/STREAM'
 ```
