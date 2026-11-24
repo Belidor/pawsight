@@ -77,6 +77,13 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--amber);outline-offs
   .hero-copy{grid-column:1}
 }
 
+.give{display:grid;gap:10px;padding-top:6px;border-top:1px solid var(--line)}
+.give>span{font-size:14px;color:var(--muted)}
+.give-links{display:flex;flex-wrap:wrap;gap:10px}
+.give-links a{display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border-radius:999px;border:1px solid rgba(224,160,99,.45);color:var(--amber);font-size:14px;font-weight:600;text-decoration:none;background:rgba(224,160,99,.06)}
+.give-links a:hover{background:rgba(224,160,99,.14)}
+.give-links small{font-weight:400;color:var(--muted)}
+
 /* sections */
 section{padding-block:88px}
 .eyebrow{display:block;font:500 12px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--amber);margin:0 0 14px}
@@ -203,6 +210,13 @@ footer a:hover{color:var(--text)}
         <a class="btn primary" href="#install" data-ev="cta-install">Install pawsight</a>
         <a class="btn ghost" href="#demo">Watch the demo</a>
       </div>
+      <div class="give" id="support">
+        <span>Free and open source. Like it? Support the project:</span>
+        <div class="give-links">
+          <a href="https://buymeacoffee.com/belid0r" data-ev="donate-bmc">☕ Buy Me a Coffee</a>
+          <a href="https://pay.cloudtips.ru/p/1652c09a" data-ev="donate-cloudtips">CloudTips <small>· Russian cards</small></a>
+        </div>
+      </div>
     </div>
   </div>
 </header>
@@ -294,21 +308,6 @@ footer a:hover{color:var(--text)}
   </div>
 </section>
 
-<section id="support" style="padding-top:0">
-  <div class="wrap">
-    <div class="support">
-      <div>
-        <span class="eyebrow">Support the project</span>
-        <h2>Free, and kept that way by people like you.</h2>
-        <p>pawsight is built in spare time by one developer and tested on one thirsty dog. Donations pay for test cameras and new features: several cameras in one dashboard, and an alert when drinking habits change.</p>
-      </div>
-      <div class="donate">
-        <a href="https://buymeacoffee.com/belid0r" data-ev="donate-bmc"><span><b>Buy Me a Coffee</b><small>Cards and PayPal, worldwide</small></span><span aria-hidden="true">→</span></a>
-        <a href="https://pay.cloudtips.ru/p/1652c09a" data-ev="donate-cloudtips"><span><b>CloudTips</b><small>Bank cards, including Russian ones</small></span><span aria-hidden="true">→</span></a>
-      </div>
-    </div>
-  </div>
-</section>
 </main>
 
 <footer>
