@@ -73,7 +73,7 @@ What it does:
 
 | Step | What you enter | Where it goes |
 |---|---|---|
-| 1. Camera | address, port, path, login and password, or a complete RTSP URL | `go2rtc/go2rtc.yaml` (mode 600, the file is in `.gitignore`) |
+| 1. Camera | address, port, path, login and password, or a complete RTSP URL; or, on the Webcam tab, the MacBook / USB camera and its size | `go2rtc/go2rtc.yaml` (mode 600, the file is in `.gitignore`) |
 | 2. Bowl | which bowl is the water bowl: the left or the right one **in the frame** | `zones.yaml` |
 | 3. Telegram | bot token and the recipients' chat_id | `.env` (mode 600) |
 
@@ -82,6 +82,13 @@ the camera over RTSP and reports the cause, not just the fact: "port closed",
 "path not found (404)", "the camera rejected the login or password", "this port
 is not RTSP". You can save an unchecked address, but only explicitly, with a
 checkbox.
+
+A webcam (the MacBook's own camera or a USB one) is checked differently: there
+is nothing to dial, so the page asks go2rtc for one real frame through ffmpeg
+and shows it. When that fails, the page quotes ffmpeg's own reason from the
+go2rtc log (no camera access on macOS, a size the camera does not have, the
+device is busy). go2rtc needs `ffmpeg` for this: `./install.sh --webcam`
+installs it.
 
 What you enter is never shown back: the camera password and the bot token go
 into files and never appear in the page's responses again. If you made a

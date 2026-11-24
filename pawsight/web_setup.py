@@ -5,12 +5,14 @@ Mixin for web.Dashboard. Moved out of web.py with no change in behaviour or URLs
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import logging
 import sys
 import time
 from pathlib import Path
 
+import aiohttp
 from aiohttp import web
 
 from . import config as cfgmod
@@ -18,6 +20,8 @@ from . import setup
 
 log = logging.getLogger("pawsight.web")
 STATIC = Path(__file__).parent / "static"
+# go2rtc stream name for the webcam test frame (in go2rtc's memory only).
+WEBCAM_PROBE = "pawsight_webcam_probe"
 
 
 class SetupRoutes:
@@ -34,7 +38,9 @@ class SetupRoutes:
         live = []
         if code == 200:
             try:
-                live = sorted(json.loads(body).keys())
+                # The webcam test leaves its in-memory stream behind; it is
+                # ours and not configuration, so it is not listed.
+                live = sorted(k for k in json.loads(body) if k != WEBCAM_PROBE)
             except Exception:
                 live = []
         obs = self.latest or {}
@@ -43,8 +49,10 @@ class SetupRoutes:
         return {
             "camera": {
                 "configured": bool(main),
-                "kind": "xiaomi" if main.startswith("xiaomi://") else ("rtsp" if main else ""),
-                "masked": setup.mask_url(main) if main else "",
+                "kind": ("xiaomi" if main.startswith("xiaomi://") else
+                         "webcam" if setup.is_webcam(main) else ("rtsp" if main else "")),
+                "masked": (setup.describe_webcam(main) if setup.is_webcam(main)
+                           else setup.mask_url(main) if main else ""),
                 "sub": setup.mask_url(sub) if sub else "",
             },
             "xiaomi": await self._exec(setup.xiaomi_logged_in),
@@ -78,11 +86,83 @@ class SetupRoutes:
 
     async def api_setup_probe(self, req):
         """Address check without writing anything: press it as often as you like."""
+        body = await self._body(req)
         try:
-            url = self._url_from(await self._body(req))
+            if body.get("kind") == "webcam":
+                url = self._webcam_url_from(body)
+            else:
+                url = self._url_from(body)
         except setup.SetupError as e:
             return web.json_response({"ok": False, "msg": str(e)}, status=400)
+        if setup.is_webcam(url):
+            return web.json_response(await self._probe_webcam(url, with_frame=True))
         return web.json_response(await setup.probe_rtsp(url))
+
+    # ---- webcam ----
+
+    @staticmethod
+    def _webcam_url_from(body: dict) -> str:
+        return setup.build_webcam_url(
+            str(body.get("device") or ""), str(body.get("size") or setup.WEBCAM_DEFAULT_SIZE),
+            str(body.get("input_format") or ""))
+
+    async def api_setup_webcams(self, req):
+        """Cameras go2rtc can open on this machine (MacBook, USB)."""
+        code, body = await self._go2rtc_call("GET", "/api/ffmpeg/devices", timeout=15)
+        if code == 404 and "no sources" in body.lower():
+            # go2rtc's way of saying "the list is empty" (no ffmpeg, no cameras)
+            code, body = 200, "[]"
+        if code != 200:
+            return web.json_response({"ok": False, "devices": [], "sizes": setup.WEBCAM_SIZES,
+                                      "msg": body if code == 0 else
+                                      f"go2rtc answered {code}: {body.strip()[:200]}"})
+        try:
+            devices = setup.webcam_devices(json.loads(body))
+        except ValueError:
+            devices = []
+        return web.json_response({
+            "ok": bool(devices), "devices": devices, "sizes": setup.WEBCAM_SIZES,
+            "default_size": setup.WEBCAM_DEFAULT_SIZE,
+            "msg": "" if devices else setup.webcam_hint()})
+
+    async def _probe_webcam(self, url: str, with_frame: bool = False) -> dict:
+        """Asks go2rtc for ONE frame from the webcam.
+
+        Unlike an IP camera, a webcam cannot be checked from the side: the
+        only honest test is the same go2rtc + ffmpeg pair actually opening the
+        device. That is also what triggers the macOS camera permission prompt,
+        so it happens here, while the person is looking at this page.
+
+        /api/frame.jpeg with src= and name= creates the stream in go2rtc's
+        memory only (no write to go2rtc.yaml), and go2rtc closes the camera
+        as soon as the frame is served.
+        """
+        s = await self._session()
+        started_ms = int(time.time() * 1000) - 1000
+        try:
+            async with s.get(f"{self.go2rtc}/api/frame.jpeg",
+                             params={"src": url, "name": WEBCAM_PROBE},
+                             headers=await self._exec(self._go2rtc_auth),
+                             timeout=aiohttp.ClientTimeout(total=25)) as r:
+                status, data = r.status, await r.read()
+                ctype = r.headers.get("Content-Type", "")
+        except asyncio.TimeoutError:
+            return {"ok": False, "code": "timeout", "msg": setup.webcam_failure(
+                "timed out after 25 s")}
+        except Exception as e:
+            return {"ok": False, "code": "go2rtc",
+                    "msg": f"go2rtc did not answer at {self.go2rtc} ({type(e).__name__})"}
+        if status == 200 and data[:2] == b"\xff\xd8":
+            res = {"ok": True, "msg": f"webcam answered: got a frame ({len(data) // 1024} KB)"}
+            if with_frame:
+                res["frame"] = "data:image/jpeg;base64," + base64.b64encode(data).decode()
+            return res
+        # A failed source is a 200 with an empty body: the reason is in go2rtc's log.
+        text = data.decode("utf-8", "replace") if "image" not in ctype else ""
+        code, log_text = await self._go2rtc_call("GET", "/api/log")
+        why = setup.go2rtc_frame_error(log_text, started_ms) if code == 200 else ""
+        return {"ok": False, "code": "no_frame",
+                "msg": setup.webcam_failure(why or text.strip() or f"go2rtc answered {status}")}
 
     @staticmethod
     def _url_from(body: dict, prefix: str = "") -> str:
@@ -146,15 +226,20 @@ class SetupRoutes:
                 "this process cannot edit go2rtc.yaml — the brain runs in a "
                 "container and the configuration lives on the host. Run the wizard there: "
                 ".venv/bin/python -m pawsight setup")}, status=409)
+        webcam = body.get("kind") == "webcam"
         try:
-            url = self._url_from(body)
-            sub = self._url_from(body, "sub_") if (
-                body.get("sub_url") or body.get("sub_path")) else ""
+            if webcam:
+                # A webcam has one stream: no substream, the detector reads the main one.
+                url, sub = self._webcam_url_from(body), ""
+            else:
+                url = self._url_from(body)
+                sub = self._url_from(body, "sub_") if (
+                    body.get("sub_url") or body.get("sub_path")) else ""
         except setup.SetupError as e:
             return web.json_response({"ok": False, "msg": str(e)}, status=400)
 
         was = await self._exec(setup.camera_configured)
-        probe = await setup.probe_rtsp(url)
+        probe = await (self._probe_webcam(url) if webcam else setup.probe_rtsp(url))
         # The second stream is probed SEPARATELY and always: go2rtc's PUT does
         # not dial the camera, so an unchecked substream would give a green
         # tick and a detector reading an address no frame will ever come from.
@@ -183,7 +268,7 @@ class SetupRoutes:
         env = {"PAWSIGHT_RTSP": f"rtsp://127.0.0.1:8554/{setup.STREAM_MAIN}",
                "PAWSIGHT_DETECT_RTSP": f"rtsp://127.0.0.1:8554/{detect}"}
         if not url.startswith("xiaomi://"):
-            # A plain camera has no pan/tilt: otherwise the detector would wait
+            # A plain camera (and a webcam) has no pan/tilt: otherwise the detector would wait
             # in vain for a PTZ that does not exist (install.sh --rtsp does the same).
             env |= {"PAWSIGHT_TILT_HOLD": "0", "PAWSIGHT_FOLLOW_DOG": "0", "PAWSIGHT_SEARCH_SEC": "0"}
         try:
@@ -201,7 +286,8 @@ class SetupRoutes:
             after.append({"ok": True, "text": (
                 "the camera was configured before: a restart is mandatory here — "
                 "the detector and current viewers hold on to the old stream")})
-        return web.json_response({"ok": True, "masked": setup.mask_url(url),
+        return web.json_response({"ok": True, "masked": (
+                                      setup.describe_webcam(url) if webcam else setup.mask_url(url)),
                                   "steps": steps + after})
 
     async def api_setup_telegram(self, req):

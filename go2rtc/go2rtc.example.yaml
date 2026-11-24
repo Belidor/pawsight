@@ -52,7 +52,13 @@ streams:
   # detector, and a small stream noticeably eases both the network and the decoder.
   # dog_cam_sd: rtsp://user:pass@ADDR:554/stream2
 
-  # --- option 2: a Xiaomi camera over P2P (install.sh --xiaomi) ---
+  # --- option 2: the computer's own camera or a USB webcam (install.sh --webcam) ---
+  # go2rtc opens it through ffmpeg and encodes it to H.264. Written by the
+  # installer or the setup page; the name is percent-encoded (no spaces allowed).
+  #   macOS  dog_cam: ffmpeg:device?video=FaceTime%20HD%20Camera&video_size=1280x720&framerate=30#video=h264#hardware
+  #   Linux  dog_cam: ffmpeg:device?video=/dev/video0&input_format=mjpeg&video_size=1280x720&framerate=30#video=h264#hardware
+
+  # --- option 3: a Xiaomi camera over P2P (install.sh --xiaomi) ---
   # Do NOT write this section by hand: go2rtc adds it itself after you
   # sign in to your Mi account via the WebUI at http://127.0.0.1:1984 (Add → Xiaomi).
   # It will look roughly like this (with your values):

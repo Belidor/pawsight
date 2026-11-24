@@ -8,7 +8,8 @@
 **Know how much your dog drinks and eats, and where it spends the day, without
 sending a single frame to the cloud.**
 
-pawsight watches an ordinary IP camera, finds your dog and its bowls, counts
+pawsight watches an ordinary IP camera (or your MacBook's own camera, or a USB
+webcam), finds your dog and its bowls, counts
 visits to the water and food bowls, and tells you in Telegram what happened.
 Everything runs on your own Mac or Linux box: IP camera → YOLO → zones → local
 VLM → SQLite and Telegram. Not a single port is exposed to the outside.
@@ -21,6 +22,8 @@ VLM → SQLite and Telegram. Not a single port is exposed to the outside.
 - **Telegram** notifications, and a fresh frame on `/snap`, answered only in your chats.
 - **Pan/tilt Xiaomi cameras** follow the dog and return to the bowls; any
   RTSP camera works with presets for Tapo, Reolink, Hikvision, Dahua, EZVIZ and Imou.
+- **No IP camera?** The MacBook's built-in camera or any USB webcam works too
+  (`./install.sh --webcam`).
 - **Fine-tuning on your own dog** from the dashboard, with an acceptance gate
   that refuses a worse model.
 - **Private by design**: video, frames and the database never leave the machine.
@@ -55,6 +58,9 @@ git clone https://github.com/Belidor/pawsight.git && cd pawsight && ./install.sh
 
 Dashboard: `http://127.0.0.1:8099`
 
+No IP camera? Use the computer's own camera or a USB webcam instead:
+`./install.sh --webcam` (details in [Camera](#webcam-macbook-or-usb)).
+
 Don't have the camera address at hand? Install without it (`./install.sh`) and
 enter everything in the browser: `./start.sh`, then `http://127.0.0.1:8099`.
 Until a camera is configured, that address opens the **setup page**: the camera
@@ -80,7 +86,7 @@ those points and tell you what is needed; you can enter them on the setup page
 
 ```
 camera ──RTSP (or P2P for Xiaomi)──> go2rtc (native, mac_arm64)
-                                        │ RTSP 127.0.0.1:8554
+webcam ──ffmpeg (avfoundation/v4l2)──┘  │ RTSP 127.0.0.1:8554
                                         ▼
    Metal (MPS) <───── YOLO26s + BoT-SORT ───── pawsight.detect (Python 3.12 arm64)
                                         │ MQTT
@@ -113,7 +119,9 @@ our own password-protected mosquitto and the brain in `.venv`, no Docker needed 
   NVIDIA GPU (driver installed, `nvidia-smi` works) the detector uses CUDA,
   otherwise the CPU, which is enough for one camera at 5 fps on a modern
   processor. The VLM (Ollama) is the heavy part on a CPU-only box.
-- a camera that serves RTSP, or a pan/tilt Xiaomi over P2P
+- a camera that serves RTSP, a pan/tilt Xiaomi over P2P, or a webcam: the
+  MacBook's built-in camera or a USB one (needs `ffmpeg`, installed by
+  `./install.sh --webcam`)
 - ~10 GB of disk: torch, YOLO weights and the VLM model
 
 The installer installs Python 3.12 itself via `uv`. The system
@@ -151,6 +159,39 @@ the right, then to the left, and waits again (`PAWSIGHT_HOME_HOLD`,
 `PAWSIGHT_SEARCH_IDLE_SEC`). The sector is set in motor pulses, not degrees: the
 camera's field of view has not been measured, and degrees would be a made-up
 number.
+
+### Webcam (MacBook or USB)
+
+```bash
+./install.sh --webcam          # the first camera
+./install.sh --webcam 1        # macOS: another camera by index or by name
+./install.sh --webcam /dev/video2   # Linux
+```
+
+Or on the setup page, **Webcam (MacBook / USB)** tab: it lists the cameras
+go2rtc can see, takes a test frame and shows it, then saves. There is no
+address and no password. go2rtc opens the camera through ffmpeg
+(avfoundation on macOS, v4l2 on Linux), encodes it to H.264 and serves it as
+the same `rtsp://127.0.0.1:8554/dog_cam`, so the detector and the dashboard
+work exactly as with an IP camera. The installer adds `ffmpeg` in this mode.
+
+What to know:
+
+- **macOS asks for camera access** the first time the camera opens (the setup
+  page's test button, or `./start.sh`), on behalf of the terminal that started
+  pawsight. Allow it; if you said no, turn it on in System Settings → Privacy &
+  Security → Camera and restart pawsight.
+- **Linux**: the user running pawsight needs to read `/dev/video*` (group
+  `video`: `sudo usermod -aG video $USER`, then log in again). USB cameras are
+  read as MJPEG where they offer it: raw 720p rarely fits USB 2.0.
+- The camera is **on all the time** while pawsight runs (its light stays lit),
+  and the computer must not sleep. A laptop has to stand where it sees both
+  bowls, which is the hard part: an external USB camera on a long cable is
+  usually easier to place.
+- A webcam cannot pan: as with a plain RTSP camera, tilt hold, following and
+  search are off.
+- go2rtc reads the list of cameras once, when it starts: after plugging in a
+  USB camera, run `./stop.sh && ./start.sh`.
 
 ### Pan/tilt Xiaomi over P2P
 

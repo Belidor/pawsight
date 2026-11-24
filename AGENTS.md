@@ -80,6 +80,20 @@ For a pan/tilt Xiaomi camera (P2P, no RTSP):
 ./install.sh --xiaomi
 ```
 
+For the computer's own camera (MacBook) or a USB webcam:
+
+```bash
+./install.sh --webcam            # the first camera
+./install.sh --webcam 1          # macOS: index or name; Linux: /dev/videoN
+```
+
+It adds `ffmpeg` and writes an `ffmpeg:device?…` source for go2rtc; there is no
+password involved. On macOS the first frame triggers the system camera prompt
+for the terminal: that click is the human's, not yours. Do not try to grant it
+through `tccutil` or the TCC database. Which camera to use is the human's call
+too, since only they know which one sees the bowls; the setup page's Webcam
+tab lists the cameras and shows a test frame.
+
 Only the camera's owner knows the RTSP address. Do not guess it by brute force
 and do not scan the network: ask the human. Common paths for different
 manufacturers are listed in `go2rtc/go2rtc.example.yaml`.
@@ -350,6 +364,10 @@ that the carry-over still works.
 | Symptom | Cause | What to do |
 |---|---|---|
 | `selftest`: RTSP UNAVAILABLE | go2rtc did not start or does not know the camera | `curl -s 127.0.0.1:1984/api/streams`; look at `go2rtc/go2rtc.log`; check that `streams.dog_cam` in `go2rtc/go2rtc.yaml` is not empty |
+| Webcam: the setup page's list is empty | go2rtc found no ffmpeg or no camera; it reads the list once at start | `brew install ffmpeg` / `sudo apt install ffmpeg`, plug the camera in, `./stop.sh && ./start.sh` |
+| Webcam: "gave no frame", mentions permission or "not authorized" | macOS camera access was refused for the terminal that runs pawsight | the human turns it on: System Settings → Privacy & Security → Camera, then `./stop.sh && ./start.sh` |
+| Webcam: "Selected framerate/video size … not supported" | the camera has no such mode | pick another size on the setup page |
+| Webcam on Linux: "Permission denied" on `/dev/video*` | the user is not in the `video` group | `sudo usermod -aG video $USER`, log in again |
 | The RTSP URL is not accepted | the camera uses a different path | paths by manufacturer are in `go2rtc/go2rtc.example.yaml`; look up the exact one in the camera's documentation |
 | MPS NO | `.venv` was built for x86_64 under Rosetta | `rm -rf .venv && ./install.sh` |
 | Ollama does not answer | the service is not running | `brew services start ollama`, then `curl -s 127.0.0.1:11434/api/tags` |

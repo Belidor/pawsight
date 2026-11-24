@@ -630,6 +630,7 @@ class Dashboard(DatasetRoutes, Go2rtcProxy, SetupRoutes):
             web.get("/api/zones", self.api_zones_get),
             web.post("/api/zones", self.api_zones_save),
             web.get("/api/setup/state", self.api_setup_state),
+            web.get("/api/setup/webcams", self.api_setup_webcams),
             web.get("/api/logs", self.api_logs),
             web.get("/api/model", self.api_model),
             web.post("/api/snapshot", self.api_snapshot),

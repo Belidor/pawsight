@@ -11,18 +11,26 @@
 #
 #   ./install.sh --rtsp rtsp://user:pass@192.168.1.50:554/stream1
 #   ./install.sh --xiaomi          # Xiaomi camera over P2P instead of RTSP
+#   ./install.sh --webcam          # the MacBook's built-in camera or a USB webcam
+#   ./install.sh --webcam 1        # the second camera (macOS: index or name,
+#                                  # Linux: /dev/videoN)
 #
 set -euo pipefail
 cd "$(dirname "$0")"
 
 RTSP_URL=""
 MODE="rtsp"
+WEBCAM=""
 SKIP_MODEL=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --rtsp)    RTSP_URL="${2:-}"; shift 2 ;;
     --xiaomi)  MODE="xiaomi"; shift ;;
+    --webcam)
+      MODE="webcam"; shift
+      # The device is optional: without it, the first camera.
+      if [ $# -gt 0 ] && [ "${1#--}" = "$1" ]; then WEBCAM="$1"; shift; fi ;;
     --no-model) SKIP_MODEL=1; shift ;;
     -h|--help)
       # only the header comment lines, up to the first executable line
@@ -97,7 +105,10 @@ if [ "$OS" = "Darwin" ]; then
   step "Packages: uv, mosquitto, ollama"
   # command -v is checked FIRST: Ollama is often installed as an .app (cask) or by
   # hand; then brew list --formula does not see it and installing the formula conflicts.
-  for pkg in uv mosquitto ollama; do
+  PKGS="uv mosquitto ollama"
+  # go2rtc opens a webcam through ffmpeg (avfoundation). An IP camera does not need it.
+  [ "$MODE" = "webcam" ] && PKGS="$PKGS ffmpeg"
+  for pkg in $PKGS; do
     if command -v "$pkg" >/dev/null 2>&1; then
       say "$pkg: already installed ($(command -v "$pkg"))"
     elif brew list --formula "$pkg" >/dev/null 2>&1; then
@@ -114,6 +125,9 @@ else
   command -v nc >/dev/null 2>&1 || NEED="$NEED netcat-openbsd"
   command -v curl >/dev/null 2>&1 || NEED="$NEED curl"
   command -v unzip >/dev/null 2>&1 || NEED="$NEED unzip"
+  if [ "$MODE" = "webcam" ]; then
+    command -v ffmpeg >/dev/null 2>&1 || NEED="$NEED ffmpeg"
+  fi
   if [ -n "$NEED" ]; then
     if command -v apt-get >/dev/null 2>&1; then
       warn "installing with apt:$NEED (sudo may ask for YOUR password)"
@@ -260,8 +274,8 @@ set_env() {  # set_env KEY value
   fi
 }
 
-if [ "$MODE" = "rtsp" ]; then
-  # A regular camera cannot pan: turn off tilt hold, following and search,
+if [ "$MODE" = "rtsp" ] || [ "$MODE" = "webcam" ]; then
+  # A regular camera (and a webcam) cannot pan: turn off tilt hold, following and search,
   # otherwise the detector would wait forever for a PTZ that does not exist.
   set_env PAWSIGHT_TILT_HOLD 0
   set_env PAWSIGHT_FOLLOW_DOG 0
@@ -269,7 +283,11 @@ if [ "$MODE" = "rtsp" ]; then
   # The SD substream is a Xiaomi trick (?subtype=sd). A regular camera has none,
   # so the detector watches the same stream as the dashboard.
   set_env PAWSIGHT_DETECT_RTSP "rtsp://127.0.0.1:8554/dog_cam"
-  say "mode: regular RTSP camera (PTZ, following and tilt hold are off)"
+  if [ "$MODE" = "webcam" ]; then
+    say "mode: webcam (PTZ, following and tilt hold are off)"
+  else
+    say "mode: regular RTSP camera (PTZ, following and tilt hold are off)"
+  fi
 fi
 
 NEW_G2R=0
@@ -312,6 +330,36 @@ f.write_text(yaml.safe_dump(cfg, allow_unicode=True, sort_keys=False))
 PY
   chmod 600 go2rtc/go2rtc.yaml
   say "dog_cam stream written to go2rtc.yaml (not printing the URL)"
+elif [ "$MODE" = "webcam" ]; then
+  # go2rtc pulls the camera through ffmpeg and serves it as the same
+  # rtsp://127.0.0.1:8554/dog_cam: nothing downstream knows it is a webcam.
+  # A re-run without a device does not overwrite a camera that is already set.
+  if [ -z "$WEBCAM" ] && "$PYBIN" -c 'import sys; from pawsight import setup; sys.exit(0 if setup.camera_configured() else 1)'; then
+    say "go2rtc.yaml already has a camera, leaving it alone (pass --webcam DEVICE to replace it)"
+  else
+    if [ -z "$WEBCAM" ]; then
+      if [ "$OS" = "Darwin" ]; then WEBCAM=0; else WEBCAM=/dev/video0; fi
+    fi
+    "$PYBIN" - "$WEBCAM" <<'PY' || die "the webcam was not written to go2rtc.yaml"
+import sys
+from pawsight import setup
+try:
+    url = setup.build_webcam_url(sys.argv[1])
+except setup.SetupError as e:
+    sys.exit(f"--webcam: {e}")
+setup.write_go2rtc_stream(url)
+print("    " + setup.describe_webcam(url) + " written to go2rtc.yaml")
+PY
+  fi
+  if [ "$OS" = "Darwin" ]; then
+    warn "macOS will ask whether your terminal may use the camera the first time"
+    warn "pawsight opens it (./start.sh, or the Test button on the setup page): allow it."
+    warn "Said no? System Settings → Privacy & Security → Camera."
+  elif ! ls /dev/video* >/dev/null 2>&1; then
+    warn "no /dev/video* devices: is the camera plugged in?"
+  elif [ -e "$WEBCAM" ] && [ ! -r "$WEBCAM" ]; then
+    warn "$WEBCAM is not readable by $(id -un): sudo usermod -aG video $(id -un), then log in again"
+  fi
 elif [ "$MODE" = "rtsp" ]; then
   warn "The camera RTSP URL is not set. Add it yourself:"
   warn "  ./install.sh --rtsp rtsp://user:password@ADDRESS:554/stream"
@@ -394,6 +442,14 @@ cat <<'EOF'
      • the setup page (step 1, Xiaomi tab) checks whether the account has
        appeared and runs this script for you; it does not ask for a password
 EOF
+elif [ "$MODE" = "webcam" ]; then
+cat <<'EOF'
+
+2. Camera
+     • the webcam is set: ./start.sh, then check the picture on
+       http://127.0.0.1:8099/setup (step 1, Webcam tab: another camera or size)
+     • the camera must see the bowls, and the computer must not go to sleep
+EOF
 elif [ -z "$RTSP_URL" ]; then
 cat <<'EOF'
 
@@ -401,6 +457,7 @@ cat <<'EOF'
      • on the setup page: ./start.sh, then http://127.0.0.1:8099/setup
        (it is checked there too: does the camera answer, is the path right, the password)
      • or from the command line: ./install.sh --rtsp rtsp://user:password@ADDRESS:554/stream
+     • no IP camera? A MacBook or USB webcam works too: ./install.sh --webcam
 EOF
 fi
 
