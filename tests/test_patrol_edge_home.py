@@ -114,7 +114,10 @@ class HomeBeyondLimit(unittest.TestCase):
         w.patrol = p
         p.pos = -1.0                          # the counter thinks we are far to the left
         p.note_dog(0.0)
-        run(p, w, 1.0, 60.0)
+        # First the patrol searches for the bowls towards the free side
+        # (test_patrol_seek_bowls), and only when that fails admits the loss.
+        run(p, w, 1.0, 150.0)
+        self.assertIn("bowls not found", " ".join(p.notes))
         self.assertIn("odometry lost", " ".join(p.notes))
 
 
