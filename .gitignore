@@ -43,3 +43,11 @@ bin/
 __pycache__/
 *.pyc
 .venv/
+
+# --- desktop app ---
+!desktop/src-tauri/icons/*.png
+!desktop/ui/*.png
+desktop/node_modules/
+desktop/src-tauri/target/
+desktop/src-tauri/binaries/
+desktop/src-tauri/gen/

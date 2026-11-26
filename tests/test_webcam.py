@@ -89,6 +89,13 @@ class BuildUrl(unittest.TestCase):
         with self.assertRaises(setup.SetupError):
             setup.build_webcam_url("/dev/video0", input_format="mjpeg -y", system="Linux")
 
+    def test_windows_uses_dshow_names_like_mac(self):
+        url = setup.build_webcam_url("Integrated Camera", "1280x720", system="Windows")
+        self.assertEqual(query(url)["video"], "Integrated Camera")
+        self.assertNotIn(" ", url)
+        with self.assertRaises(setup.SetupError):
+            setup.build_webcam_url('Cam" -i "x', system="Windows")
+
     def test_size_must_be_one_of_ours(self):
         with self.assertRaises(setup.SetupError):
             setup.build_webcam_url("FaceTime HD Camera", "1280x720 -y", system="Darwin")
@@ -121,6 +128,13 @@ class DeviceList(unittest.TestCase):
         got = setup.webcam_devices(MAC_DEVICES, system="Darwin")
         # "Capture screen" is the whole screen: it must never be offered
         self.assertEqual([d["id"] for d in got], ["FaceTime HD Camera"])
+
+    def test_windows_lists_cameras_by_name(self):
+        got = setup.webcam_devices({"sources": [
+            {"name": "Integrated Camera", "url": "ffmpeg:device?video=Integrated%20Camera"},
+            {"name": "Microphone Array", "url": "ffmpeg:device?audio=Microphone%20Array"},
+        ]}, system="Windows")
+        self.assertEqual([d["id"] for d in got], ["Integrated Camera"])
 
     def test_linux_one_entry_per_device_mjpeg_preferred(self):
         got = setup.webcam_devices(LINUX_DEVICES, system="Linux")

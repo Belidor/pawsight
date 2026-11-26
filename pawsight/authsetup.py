@@ -107,7 +107,11 @@ def mosquitto_hash(password: str, salt: bytes | None = None, iterations: int = 1
 
 
 def _owner(root: Path) -> str:
-    import pwd
+    try:
+        import pwd
+    except ImportError:             # Windows: no mosquitto user switching there anyway
+        import getpass
+        return getpass.getuser()
     try:
         return pwd.getpwuid(root.stat().st_uid).pw_name
     except (KeyError, OSError):

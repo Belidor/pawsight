@@ -64,18 +64,18 @@ class TrainerKnowsAboutPause(_TmpLock):
     def test_stop_lifts_the_pause(self):
         t, _ = self._started(pause=True)
         with patch.object(trainer, "read_lock", return_value={"pid": 4242}), \
-                patch.object(trainer.os, "getpgid", return_value=4242), \
-                patch.object(trainer.os, "killpg"):
+                patch.object(trainer.procutil, "terminate") as term:
             self.assertTrue(t.stop()["ok"])
+        term.assert_called_once_with(4242)
         self.assertFalse(t.detection_paused())
 
     def test_detector_restart_remembers_the_pause(self):
         trainer.LOCK.write_text(json.dumps({"pid": 777, "paused": True, "started": 0}))
         with patch.object(trainer, "_alive", return_value=True), \
-                patch.object(trainer.os, "kill") as kill:
+                patch.object(trainer.procutil, "pid_alive", return_value=True) as alive:
             t = trainer.Trainer(self.cfg)
             self.assertTrue(t.detection_paused())
-            kill.side_effect = OSError("no such process")
+            alive.return_value = False      # the run is gone
             self.assertFalse(t.detection_paused())
 
 

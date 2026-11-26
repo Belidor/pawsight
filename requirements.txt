@@ -33,3 +33,9 @@ cryptography>=42
 # micloud: only for scripts/get_device_token.py (Xiaomi cameras).
 # A regular RTSP camera does not need it, but it is tiny.
 micloud>=0.6
+
+# The desktop app only (python -m pawsight run): an MQTT broker in pure Python,
+# so the app needs no mosquitto from the system (there is none on Windows).
+# The CLI install keeps mosquitto. psutil: process checks that work on Windows.
+amqtt>=0.12,<0.13
+psutil>=5.9

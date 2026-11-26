@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- go2rtc opens the MacBook / USB camera through ffmpeg when the webcam mode is chosen.
+       Without this key macOS kills the process instead of asking. -->
+  <key>NSCameraUsageDescription</key>
+  <string>pawsight watches your dog through this camera. The video stays on this Mac.</string>
+  <!-- go2rtc talks to the IP camera on the home network (macOS 15 local network privacy). -->
+  <key>NSLocalNetworkUsageDescription</key>
+  <string>pawsight connects to your IP camera on the local network. Nothing leaves your network.</string>
+</dict>
+</plist>
