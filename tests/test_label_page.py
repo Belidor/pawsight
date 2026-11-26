@@ -41,6 +41,20 @@ class LabelPage(unittest.IsolatedAsyncioTestCase):
         self.assertIn('"X-Pawsight": "1"', js)
         self.assertIn('"/api/label/classes"', js)
 
+    async def test_editors_take_classes_from_the_server(self):
+        """Both editors build their class buttons from /api/label/classes: a
+        hardcoded three would drop boxes of an added class on the next Save."""
+        for path in ("/static/label.js", "/static/dashboard.js"):
+            with self.subTest(path=path):
+                js = await (await self.client.get(path)).text()
+                self.assertIn('"/api/label/classes"', js)
+        js = await (await self.client.get("/static/label.js")).text()
+        self.assertIn('"no_extra"', js)
+
+    async def test_classes_endpoint_lists_extra(self):
+        d = await (await self.client.get("/api/label/classes")).json()
+        self.assertEqual(d["extra"], d["classes"][3:])
+
     async def test_dashboard_links_the_page(self):
         html = await (await self.client.get("/?dashboard=1")).text()
         self.assertIn('href="/label"', html)
