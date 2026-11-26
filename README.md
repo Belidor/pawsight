@@ -307,6 +307,10 @@ undone, so it asks for confirmation with a second click; the frame is also
 struck from the frozen validation split, otherwise its share would be computed
 over names that no longer exist.
 
+For longer sessions there is a separate **labelling page** at `/label` (the
+"labelling" link in the header): the frame at full width with the frame list
+beside it, capture from the camera, keyboard shortcuts and undo.
+
 Until a camera address is set, `/` opens the **setup page**; afterwards you can
 reach it through the "setup" link in the header.
 

@@ -8,6 +8,7 @@ from __future__ import annotations
 import logging
 import time
 import uuid
+from pathlib import Path
 
 from aiohttp import web
 
@@ -15,6 +16,7 @@ from . import cleanup
 from .bus import decode
 from .config import ROOT as ROOT_PATH
 from .labelcheck import validate_boxes
+from .labels import DATASET_CLASSES, MIN_IMAGES
 from .webguard import _int_arg
 
 # Same logger name as before: the activity feed and tests use it to recognise dashboard records.
@@ -87,6 +89,9 @@ class DatasetRoutes:
         d["frames"] = [dict(f, url=f"/api/snapshot/{sid}/{i}.jpg")
                        for i, f in enumerate(d.get("frames") or [])]
         d["type"] = "snapshot"
+        # Kept for GET /api/snapshot/{sid}: the labelling page asks for the
+        # ring by id instead of listening to the dashboard's live broadcast.
+        snap["ready"] = d
         self.push(d)
         fut = self._pending.get(sid)
         loop = self._loop
@@ -111,6 +116,18 @@ class DatasetRoutes:
             raise web.HTTPNotFound(text="frame expired — take a new one")
         return web.Response(body=snap["jpegs"][n], content_type="image/jpeg",
                             headers={"Cache-Control": "no-store"})
+
+    async def api_snapshot_meta(self, req):
+        """The ring of a still frame, once all its JPEGs have arrived.
+
+        POST /api/snapshot answers only after that moment, so the labelling
+        page reads the description here rather than from the /api/live
+        broadcast: it does not need the observation stream at all."""
+        snap = self._snaps.get(req.match_info["sid"])
+        if snap is None or "ready" not in snap:
+            return web.json_response({"ok": False, "error": "frame expired — take a new one"},
+                                     status=404)
+        return web.json_response({"ok": True, **snap["ready"]})
 
     async def api_snapshot_save(self, req):
         sid = req.match_info["sid"]
@@ -137,6 +154,21 @@ class DatasetRoutes:
     async def api_snapshot_drop(self, req):
         self._snaps.pop(req.match_info["sid"], None)
         return web.json_response({"ok": True})
+
+    # ---- labelling page ----
+
+    async def label_page(self, _req):
+        return web.FileResponse(Path(__file__).parent / "static" / "label.html")
+
+    async def api_label_classes(self, _req):
+        """Dataset classes in index order: the page builds its buttons and
+        hotkeys from this, so the class list lives in ONE place (labels.py)
+        and the page cannot offer a class the detector would refuse."""
+        return web.json_response({
+            "ok": True,
+            "classes": [DATASET_CLASSES[i] for i in sorted(DATASET_CLASSES)],
+            "min_images": MIN_IMAGES,
+        })
 
     # ---- reviewing accumulated labels ----
 

@@ -84,7 +84,9 @@ The pre-labelling is done by the model itself, and it contains mistakes,
 otherwise fine-tuning would be pointless. The easiest way to go through them is
 the **"Dataset"** tab on the dashboard: it puts suspicious frames first (empty
 labels, "dog only", no bowls, low confidence) and lets you edit boxes, remove
-them all at once and throw out bad frames entirely. Any YOLO-format editor
+them all at once and throw out bad frames entirely. For a long review session
+the separate page `http://127.0.0.1:8099/label` does the same with the frame at
+full width, keyboard shortcuts and undo. Any YOLO-format editor
 works too (label-studio, CVAT, labelImg).
 
 Deleting a frame from the dashboard also touches `val_manifest.json`: the
