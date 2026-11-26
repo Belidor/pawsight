@@ -68,6 +68,15 @@ GIVE_UP_RETRY_MAX = 300.0
 # The burst remains for the blind part of the way, where the frame has nothing
 # to show anyway.
 PULSE_SETTLE_SEC = 3.5
+# The return hit the edge of travel and no bowls are visible: odometry lied,
+# and home lies on the OTHER side, since it cannot be beyond the stop. The
+# patrol used to give up here, reset the counter and declare "home" wherever it
+# stood: on 2026-11-25 the camera watched the TV at the right limit for an hour
+# while the bowls were further left ("assuming home, but no bowls in frame"
+# every 1-3 minutes). Now the patrol searches for the bowls towards the free
+# side, one pulse at a time, looking after each one.
+SEEK_MAX_PULSES = 12             # ~2 frame widths left, ~1.2 right
+SEEK_LOOK_SEC = 5.0              # the motor arrives (~3 s), the detector needs fresh frames
 NOTES_KEPT = 6
 
 
@@ -146,6 +155,9 @@ class Patrol:
         # if it moved, retry right away.
         self._edge_pos: float | None = None
         self._edge_fails = 0
+        # Bowl search after a blind hit on the edge: direction and pulses left.
+        self._seek: str | None = None
+        self._seek_left = 0
         self._load_ref()
 
     # ------------------------------------------------------------------ facts
@@ -287,6 +299,7 @@ class Patrol:
             "home_confirmed": self.home_confirmed,
             "direction": self.direction,
             "edge_retries": self._edge_fails,
+            "seek": self._seek,
         }
 
     # --------------------------------------------------------------- by eye
@@ -380,11 +393,26 @@ class Patrol:
     def _return(self, now: float) -> None:
         if self._over_budget(now):
             return
+        if self._seek is not None:
+            if not self._bowls_visible:
+                self._seek_tick(now)
+                return
+            # Bowls found: odometry is already corrected from the frame
+            # (`_observe`), so the usual return with fine-tuning takes over.
+            log.info("patrol: bowls found at %+.2f width, turning home", -self.pos)
+            self._note("bowls found after the edge")
+            self._seek = None
+            self._return_budget = None
         if abs(self.pos) <= self.home_deadband:
             self._arrive(now)
             return
         direction = "left" if self.pos > 0 else "right"
         if self._at_edge(direction, now):
+            other = "left" if direction == "right" else "right"
+            seen = (now - self._bowls_ts) <= HOME_MEMORY_SEC
+            if not seen and not self._at_edge(other, now):
+                self._start_seek(other, direction)
+                return
             self._note("return hit the edge of travel")
             self._arrive(now, gave_up="edge of travel")
             return
@@ -404,6 +432,35 @@ class Patrol:
         if self._pulse(direction, now):
             self._return_budget -= 1
             self.status = f"returning home: {self.pos:+.2f} width"
+
+    def _start_seek(self, direction: str, edge: str) -> None:
+        self._seek = direction
+        self._seek_left = SEEK_MAX_PULSES
+        self._last_pulse_ts = float("-inf")
+        self._note(f"return hit the edge ({edge}) with no bowls, searching {direction}")
+        log.info("patrol: return hit the %s edge with no bowls in frame, so home is not "
+                 "there; searching for the bowls %s (up to %d pulses)",
+                 edge, direction, SEEK_MAX_PULSES)
+        self.status = f"searching for the bowls: {direction}"
+
+    def _seek_tick(self, now: float) -> None:
+        """One pulse towards the free side and a pause, so the detector has time
+        to see the bowls. Not a burst: it would fly past them while the stream froze."""
+        d = self._seek
+        if now - self._last_pulse_ts < SEEK_LOOK_SEC:
+            self.status = f"searching for the bowls: {d}, looking"
+            return
+        if self._seek_left <= 0 or self._at_edge(d, now):
+            why = "edge of travel" if self._seek_left > 0 else "search pulses used up"
+            self._seek = None
+            self._note(f"bowls not found ({why})")
+            log.warning("patrol: bowls not found (%s)", why)
+            self._arrive(now, gave_up="bowls not found")
+            return
+        if self._pulse(d, now):
+            self._seek_left -= 1
+            self.status = (f"searching for the bowls: {d}, "
+                           f"pulse {SEEK_MAX_PULSES - self._seek_left}/{SEEK_MAX_PULSES}")
 
     def _arrive(self, now: float, gave_up: str | None = None) -> None:
         """Arrived, or gave up (`gave_up` says why).
