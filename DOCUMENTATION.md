@@ -400,7 +400,10 @@ The rules are the same as in the dashboard, because the requests are the same:
 a class that disappears from a frame needs a second "Save", and "Delete frame"
 needs a second press. The class buttons come from `pawsight/labels.py`
 (`DATASET_CLASSES`), so the page never offers a class the detector would
-refuse to write.
+refuse to write. `PAWSIGHT_CLASSES=shared` in `.env` adds couch, bed, chair,
+dining table and rug, as in the shared model; then the list gets a "no extra
+classes" filter for frames labelled before they existed (details in
+`docs/FINETUNE.md`).
 
 ### Once a week
 

@@ -16,7 +16,7 @@ from . import cleanup
 from .bus import decode
 from .config import ROOT as ROOT_PATH
 from .labelcheck import validate_boxes
-from .labels import DATASET_CLASSES, MIN_IMAGES
+from .labels import DATASET_CLASSES, EXTRA_CLASSES, MIN_IMAGES
 from .webguard import _int_arg
 
 # Same logger name as before: the activity feed and tests use it to recognise dashboard records.
@@ -167,6 +167,9 @@ class DatasetRoutes:
         return web.json_response({
             "ok": True,
             "classes": [DATASET_CLASSES[i] for i in sorted(DATASET_CLASSES)],
+            # Added through PAWSIGHT_CLASSES on top of dog/bowl/person: the page
+            # offers a filter for frames that have none of them yet.
+            "extra": list(EXTRA_CLASSES),
             "min_images": MIN_IMAGES,
         })
 

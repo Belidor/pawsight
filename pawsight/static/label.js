@@ -25,6 +25,7 @@ const KNOWN = { dog: "#E0A063", bowl: "#63A8E0", person: "#A38FD6" };
 const PALETTE = ["#7FBDA0", "#E0B054", "#DE7C63", "#8FC6D6", "#B7C46A", "#D68FA8"];
 
 let CLS = [];              // class names, index order
+let EXTRA = [];            // classes added via PAWSIGHT_CLASSES on top of dog/bowl/person
 const COLOR = {};
 let items = [];            // dataset listing from the detector
 let counts = null;
@@ -98,6 +99,14 @@ function dirty() { return !!cur && boxesKey(cur.boxes) !== cur.saved; }
 async function loadClasses() {
   const d = await api("GET", "/api/label/classes");
   CLS = d.ok ? d.classes : ["dog", "bowl", "person"];
+  EXTRA = d.ok ? (d.extra || []) : [];
+  if (EXTRA.length) {
+    // Offer the filter only when there is something to filter by.
+    const o = document.createElement("option");
+    o.value = "no_extra";
+    o.textContent = "no " + (EXTRA.length > 2 ? "extra classes" : EXTRA.join("/"));
+    $("l-filter").appendChild(o);
+  }
   let k = 0;
   CLS.forEach((c) => { COLOR[c] = KNOWN[c] || PALETTE[k++ % PALETTE.length]; });
   drawCls = CLS[0];
@@ -160,6 +169,7 @@ function passes(it) {
   if (filter === "no_bowl") return k.indexOf("bowl") < 0;
   if (filter === "dog_only") return k.length === 1 && k[0] === "dog";
   if (filter === "empty") return !k.length;
+  if (filter === "no_extra") return !k.some((c) => EXTRA.indexOf(c) >= 0);
   return true;
 }
 
@@ -202,6 +212,10 @@ function renderStat() {
   add("s", String(c.no_bowl || 0));
   host.appendChild(document.createTextNode(" · empty "));
   add("b", String(c.empty || 0));
+  if (EXTRA.length) {
+    host.appendChild(document.createTextNode(" · without " + EXTRA.join("/") + " "));
+    add("s", String(c.no_extra || 0));
+  }
   if (filter) host.appendChild(document.createTextNode(" · shown " + view.length));
   $("l-pairs").textContent = (c.all || 0) + " frames in dataset";
 }
@@ -659,6 +673,10 @@ async function save() {
         const had = it.kinds || [];
         counts.no_bowl = (counts.no_bowl || 0) - (had.indexOf("bowl") < 0) + (kinds.indexOf("bowl") < 0);
         counts.empty = (counts.empty || 0) - !had.length + !kinds.length;
+        if (EXTRA.length) {
+          const noX = (ks) => !ks.some((x) => EXTRA.indexOf(x) >= 0);
+          counts.no_extra = (counts.no_extra || 0) - noX(had) + noX(kinds);
+        }
       }
       it.human = true; it.n = r.labels; it.kinds = kinds;
     }

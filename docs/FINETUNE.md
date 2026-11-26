@@ -35,7 +35,28 @@ fours and in motion they get confused more often than you would think.
 
 The flip side: **each** of the three classes must be labelled in **every**
 frame. A missing bowl is not "no data", it is a training example saying "there
-is no bowl here". Hence the minimal set: three classes, no more.
+is no bowl here". Hence the minimal set: three classes.
+
+### More classes: `PAWSIGHT_CLASSES`
+
+The three are the floor, not a ceiling. `PAWSIGHT_CLASSES=shared` in `.env`
+adds the furniture classes of the shared model: `couch`, `bed`, `chair`,
+`dining table`, `rug`. A custom list works too, as long as it starts with
+`dog,bowl,person` in that order: label files store indices, and every frame
+collected so far says 0 dog, 1 bowl, 2 person. Extra classes are appended
+after them, so old labels keep their meaning. The names are COCO's where COCO
+has the class, so the pretrained head carries over to them by name; `rug`
+starts from scratch. The order differs from `shared-dataset/data.yaml`
+(0 dog, 1 person, 2 bowl, …); that is fine, because training and the detector
+match classes by name, not index.
+
+The price: frames labelled before you add a class have no boxes for it, and
+the rule above applies to them. `train.py` names how many frames have none of
+the added classes; the `/label` page has a "no extra classes" filter for
+exactly those. The `bowl` acceptance gate stays as it is.
+
+Restart both the detector and the brain after changing the list; a bad value
+stops them with a message instead of quietly falling back.
 
 ---
 

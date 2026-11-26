@@ -243,9 +243,13 @@
   // a box drawn on the live video would not match the saved frame: a silent
   // miss. So we label exactly the frame that goes to disk, and a ring of six
   // frames lets the user step back to the right moment.
+  // The base three; the real list (PAWSIGHT_CLASSES may add furniture) comes
+  // from /api/label/classes below. Without it, boxes of an added class would
+  // be filtered out of the editor and lost on the next "Save".
   var CLS = ["dog", "bowl", "person"];
   var CLS_NAME = { dog: "dog", bowl: "bowl", person: "person" };
   var CLS_COLOR = { dog: "#E0A063", bowl: "#8A8175", person: "#6E86A8" };
+  var CLS_EXTRA_COLOR = ["#7FBDA0", "#E0B054", "#DE7C63", "#8FC6D6", "#B7C46A", "#D68FA8"];
   var shotMode = "off";          // off | wait | edit | saving
   // One editor serves two jobs: a fresh still frame ("live") and review of
   // what is already in the dataset ("dataset"). Coordinate math, drawing and
@@ -565,8 +569,8 @@
       if (shot.sel >= 0) { shot.boxes.splice(shot.sel, 1); shot.sel = -1; shotTally(); drawShot(); }
       e.preventDefault(); return;
     }
-    var ci = ["1", "2", "3"].indexOf(e.key);
-    if (ci >= 0) {
+    var ci = "123456789".indexOf(e.key);
+    if (ci >= 0 && ci < CLS.length && !e.metaKey && !e.ctrlKey) {
       setCls(CLS[ci]);
       if (shot.sel >= 0) { shot.boxes[shot.sel].cls = CLS[ci]; shot.boxes[shot.sel].src = "user"; }
       shotTally(); drawShot(); e.preventDefault(); return;
@@ -606,13 +610,40 @@
   document.getElementById("shot-del").addEventListener("click", function () {
     if (shot.sel >= 0) { shot.boxes.splice(shot.sel, 1); shot.sel = -1; shotTally(); drawShot(); }
   });
-  document.querySelectorAll('.bar-edit .seg-b').forEach(function (b) {
-    b.addEventListener("click", function () {
-      setCls(b.dataset.cls);
-      if (shot.sel >= 0) { shot.boxes[shot.sel].cls = b.dataset.cls; shot.boxes[shot.sel].src = "user"; }
-      shotTally(); drawShot();
+  function bindClassButtons(bar) {
+    document.querySelectorAll(bar + ' .seg-b').forEach(function (b) {
+      b.addEventListener("click", function () {
+        if (!shot) return;
+        setCls(b.dataset.cls);
+        if (shot.sel >= 0) { shot.boxes[shot.sel].cls = b.dataset.cls; shot.boxes[shot.sel].src = "user"; }
+        shotTally(); drawShot();
+      });
     });
-  });
+  }
+  bindClassButtons(".bar-edit");
+  // Rebuild both class selectors from the server's list.
+  fetch("/api/label/classes").then(function (r) { return r.json(); }).then(function (d) {
+    if (!d.ok || !d.classes || d.classes.join() === CLS.join()) return;
+    CLS = d.classes;
+    var k = 0;
+    CLS.forEach(function (c) {
+      if (!CLS_NAME[c]) CLS_NAME[c] = c;
+      if (!CLS_COLOR[c]) CLS_COLOR[c] = CLS_EXTRA_COLOR[k++ % CLS_EXTRA_COLOR.length];
+    });
+    [".bar-edit", ".bar-review"].forEach(function (bar) {
+      var seg = document.querySelector(bar + " .seg");
+      seg.textContent = "";
+      CLS.forEach(function (c, i) {
+        var b = document.createElement("button");
+        b.className = "seg-b" + (i === 0 ? " on" : "");
+        b.dataset.cls = c;
+        b.appendChild(document.createTextNode(CLS_NAME[c] + " "));
+        if (i < 9) { var kb = document.createElement("kbd"); kb.textContent = String(i + 1); b.appendChild(kb); }
+        seg.appendChild(b);
+      });
+      bindClassButtons(bar);
+    });
+  }).catch(function () {});
   document.getElementById("shot-prev").addEventListener("click", function () {
     if (shot && shot.n > 0) loadFrame(shot.n - 1, false);
   });
@@ -1026,13 +1057,7 @@
   document.getElementById("rv-clear").addEventListener("click", qClear);
   document.getElementById("rv-drop").addEventListener("click", qDrop);
   document.getElementById("rv-home").addEventListener("click", qHome);
-  document.querySelectorAll('.bar-review .seg-b').forEach(function (b) {
-    b.addEventListener("click", function () {
-      setCls(b.dataset.cls);
-      if (shot.sel >= 0) { shot.boxes[shot.sel].cls = b.dataset.cls; shot.boxes[shot.sel].src = "user"; }
-      shotTally(); drawShot();
-    });
-  });
+  bindClassButtons(".bar-review");
 
   // ---- tabs ----
   // All tab contents always stay in the DOM: logs must accumulate on a hidden

@@ -15,7 +15,7 @@ import json
 import re
 from pathlib import Path
 
-from .labels import DATASET_CLASSES, DATASET_IDS
+from .labels import DATASET_CLASSES, DATASET_IDS, EXTRA_CLASSES
 
 # Auto-collected name: dog_YYYYmmdd_HHMMSS_<conf*100>.jpg
 AUTO_RE = re.compile(r"^dog_\d{8}_\d{6}_(\d{2,3})$")
@@ -105,6 +105,10 @@ def listing(root: Path, order: str = "suspicious", limit: int = 400) -> dict:
     human = _human_set(root)
     items = []
     counts = {"all": 0, "human": 0, "no_bowl": 0, "dog_only": 0, "empty": 0}
+    if EXTRA_CLASSES:
+        # Frames with none of the added classes: most were labelled before the
+        # classes existed, and teach those objects as background until reviewed.
+        counts["no_extra"] = 0
     for p in sorted(img_dir.glob("*.jpg")):
         boxes = read_label(lbl_dir / f"{p.stem}.txt")
         is_human = p.stem in human
@@ -115,6 +119,8 @@ def listing(root: Path, order: str = "suspicious", limit: int = 400) -> dict:
         counts["no_bowl"] += "bowl" not in kinds
         counts["dog_only"] += bool(boxes) and kinds == {"dog"}
         counts["empty"] += not boxes
+        if EXTRA_CLASSES:
+            counts["no_extra"] += not (kinds & set(EXTRA_CLASSES))
         try:
             ts = p.stat().st_mtime
         except OSError:

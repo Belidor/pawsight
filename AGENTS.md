@@ -316,7 +316,9 @@ the `bowl` class ceases to exist. All of the project's zones depend on `bowl`.
 It breaks silently: the dog keeps being detected perfectly, while bowl visits
 simply disappear from the statistics.
 
-That is why the dataset always has three classes, `dog`, `bowl`, `person`, and
+That is why the dataset always has at least three classes, `dog`, `bowl`,
+`person` (more can be added after them with `PAWSIGHT_CLASSES`, see
+`docs/FINETUNE.md`; never reorder or drop the three), and
 `pawsight/train.py` has an acceptance gate: the model is rejected if `bowl`
 mAP50 drops below 0.70 or if the `bowl` class is missing from the validation
 set altogether.
