@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/png" href="/static/favicon.png">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+<title>pawsight · labelling</title>
+<!--
+  Labelling camera frames for fine-tuning, on a page of its own.
+  The dashboard can label too, but it does so ON TOP of the live video, in a
+  16:9 box shared with everything else. Here the frame gets the whole width,
+  the frame list stays next to it, and nothing else competes for the keyboard.
+  Same API and same rules as the dashboard: every box goes through
+  labelcheck.validate_boxes on both ends, and a class vanishing from a frame
+  needs a second "Save".
+-->
+<link rel="stylesheet" href="/static/dashboard.css">
+<link rel="stylesheet" href="/static/label.css">
+</head>
+<body>
+<div class="lapp">
+  <header>
+    <h1>pawsight <span>· labelling</span></h1>
+    <div class="health">
+      <span id="l-pairs"></span>
+      <a href="/">dashboard</a>
+      <a href="/zones">zones</a>
+    </div>
+  </header>
+
+  <aside class="lside card" aria-label="frames">
+    <div class="lside-head">
+      <button class="btn go" id="l-take" title="freeze the detector's last frames and label one of them (C)">Capture from camera <kbd>C</kbd></button>
+    </div>
+    <div class="lside-ctrls">
+      <span class="seg" role="group" aria-label="order">
+        <button class="seg-b on" data-ord="suspicious">suspicious</button>
+        <button class="seg-b" data-ord="new">newest</button>
+      </span>
+      <select id="l-filter" aria-label="filter">
+        <option value="">all</option>
+        <option value="todo">not reviewed</option>
+        <option value="no_bowl">no bowl</option>
+        <option value="dog_only">dog only</option>
+        <option value="empty">empty</option>
+      </select>
+      <button class="btn sm" id="l-reload" title="reload the list">↻</button>
+    </div>
+    <div class="lside-stat" id="l-stat"></div>
+    <ul class="queue lqueue" id="l-queue"></ul>
+  </aside>
+
+  <main class="lmain">
+    <div class="ltop">
+      <span class="lsrc" id="l-src">pick a frame on the left or capture one from the camera</span>
+      <span class="lring" id="l-ring" hidden>
+        <button class="btn sm" id="l-ring-prev" title="earlier frame of the capture">←</button>
+        <span class="tally" id="l-ring-pos"></span>
+        <button class="btn sm" id="l-ring-next" title="later frame of the capture">→</button>
+      </span>
+      <span class="bar-sp"></span>
+      <button class="btn sm" id="l-prev" title="previous frame in the list (← with no box selected)">← prev</button>
+      <span class="tally" id="l-pos"></span>
+      <button class="btn sm" id="l-next" title="next frame in the list (→ with no box selected)">next →</button>
+    </div>
+
+    <div class="lstage" id="l-stage">
+      <img id="l-img" alt="frame being labelled" draggable="false" hidden>
+      <canvas id="l-cv" tabindex="0" aria-label="labelling canvas: drag to draw a box"></canvas>
+      <div class="badge" id="l-badge">no frame</div>
+    </div>
+
+    <div class="lbar">
+      <span class="seg" role="group" aria-label="class of new box" id="l-classes"></span>
+      <span class="tally" id="l-tally"></span>
+      <span class="bar-sp"></span>
+      <button class="btn sm" id="l-undo" disabled title="undo the last change (Ctrl+Z)">Undo</button>
+      <button class="btn sm" id="l-hide" aria-pressed="false" title="hide boxes to see the picture (H)">Hide boxes <kbd>H</kbd></button>
+      <button class="btn sm" id="l-hint" title="re-run the frame at a low threshold and suggest boxes">Hint</button>
+      <button class="btn sm" id="l-del" disabled title="delete the selected box (Del)">Delete box</button>
+      <button class="btn sm" id="l-clear" title="remove all boxes; saved only on Save">Clear all</button>
+      <button class="btn sm danger" id="l-drop" title="erase the frame and its labels from disk">Delete frame</button>
+      <button class="btn go" id="l-save" disabled>Save <kbd>Enter</kbd></button>
+    </div>
+    <div class="bar-msg" id="l-msg" role="status" aria-live="polite"></div>
+    <p class="lkeys">
+      Drag on the frame to draw a box; drag a box to move it, its corners to resize.
+      <kbd>1</kbd>…<kbd>9</kbd> class (changes the selected box too) ·
+      <kbd>Tab</kbd> next box · arrows nudge the selected box (<kbd>Shift</kbd> ×10),
+      or page the list when nothing is selected · <kbd>Del</kbd> delete box ·
+      <kbd>Ctrl</kbd>+<kbd>Z</kbd> undo · <kbd>Esc</kbd> deselect ·
+      <kbd>Enter</kbd> save and go to the next frame.
+      Label <b>every</b> object of every class in the frame: an unlabelled one is learned as background.
+    </p>
+  </main>
+</div>
+<script type="module" src="/static/label.js"></script>
+</body>
+</html>

@@ -28,8 +28,8 @@ from pathlib import Path
 
 import yaml
 
-from .labels import (BOWL_MAP50_FLOOR, DATASET_CLASSES, MIN_IMAGES,  # noqa: F401
-                     VAL_FRACTION, VAL_MIN_FRACTION)
+from .labels import (BASE_CLASSES, BOWL_MAP50_FLOOR, DATASET_CLASSES,  # noqa: F401
+                     EXTRA_CLASSES, MIN_IMAGES, VAL_FRACTION, VAL_MIN_FRACTION)
 
 log = logging.getLogger("pawsight.train")
 
@@ -85,6 +85,8 @@ def _split(root: Path, seed: int = 1337) -> tuple[int, int, dict | None]:
             "Let the system run for a few more days."
         )
 
+    _check_class_ids(pairs)
+
     refrozen = None
     if frozen.exists():
         val_names = set(json.loads(frozen.read_text()))
@@ -131,6 +133,45 @@ def _split(root: Path, seed: int = 1337) -> tuple[int, int, dict | None]:
         else:
             n_tr += 1
     return n_tr, n_va, refrozen
+
+
+def _check_class_ids(pairs) -> None:
+    """Labels must only use indices of the CURRENT class list.
+
+    PAWSIGHT_CLASSES can be shortened after frames were labelled with more
+    classes; ultralytics would then fail on an index >= nc, but only after the
+    person has waited for the dataset scan. Refuse up front, by name of file.
+
+    And the opposite case, said out loud rather than refused: classes were
+    ADDED, and the frames labelled before that have no boxes for them. Any such
+    object in those frames is learned as background until someone reviews them.
+    """
+    nc = len(DATASET_CLASSES)
+    extra_ids = set(range(len(BASE_CLASSES), nc))
+    foreign, without_extra = [], 0
+    for _img, lbl in pairs:
+        ids = set()
+        for row in lbl.read_text().splitlines():
+            parts = row.split()
+            if parts:
+                try:
+                    ids.add(int(parts[0]))
+                except ValueError:
+                    continue
+        if any(i < 0 or i >= nc for i in ids):
+            foreign.append(lbl.name)
+        if extra_ids and not ids & extra_ids:
+            without_extra += 1
+    if foreign:
+        raise SystemExit(
+            f"{len(foreign)} label files use a class index outside the current list "
+            f"({', '.join(DATASET_CLASSES.values())}), e.g. {', '.join(foreign[:3])}. "
+            "Was PAWSIGHT_CLASSES shortened? Put the classes back or relabel those frames.")
+    if extra_ids and without_extra:
+        log.warning(
+            "%d of %d frames have no boxes of %s. If those objects are in them, they "
+            "are learned as background: review them on /label (filter \"no extra classes\").",
+            without_extra, len(pairs), ", ".join(EXTRA_CLASSES))
 
 
 def _write_data_yaml(root: Path) -> Path:

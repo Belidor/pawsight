@@ -13,12 +13,85 @@ bowl, so labelling would break silently. Details in dataset.py and train.py.
 """
 from __future__ import annotations
 
-# Indices are CONTIGUOUS (0,1,2): data.yaml requires that.
-# The mapping to COCO goes by NAME: when fine-tuning, ultralytics 8.4.141
-# carries over the pretrained head's rows by class name (cls_remap), so the
-# order does not matter, but the set of classes does.
-DATASET_CLASSES: dict[int, str] = {0: "dog", 1: "bowl", 2: "person"}
-COCO_TO_DATASET: dict[int, int] = {16: 0, 45: 1, 0: 2}
+import os
+from pathlib import Path
+
+# The three classes every install has. Indices are CONTIGUOUS (0,1,2): data.yaml
+# requires that. The mapping to COCO goes by NAME: when fine-tuning, ultralytics
+# 8.4.141 carries over the pretrained head's rows by class name (cls_remap), so
+# the order does not matter, but the set of classes does.
+BASE_CLASSES: tuple[str, ...] = ("dog", "bowl", "person")
+
+# Furniture and the like, as in the shared model's dataset (shared-dataset/
+# data.yaml). Names are COCO's where COCO has the class ("couch", "dining
+# table"), so the pretrained head carries over to them by name too; "rug" is
+# not in COCO and starts from scratch.
+SHARED_EXTRA: tuple[str, ...] = ("couch", "bed", "chair", "dining table", "rug")
+PRESETS: dict[str, tuple[str, ...]] = {
+    "base": BASE_CLASSES,
+    "shared": BASE_CLASSES + SHARED_EXTRA,
+}
+
+# COCO indices of the classes above that COCO has.
+_COCO_IDS = {"dog": 16, "bowl": 45, "person": 0, "couch": 57, "bed": 59,
+             "chair": 56, "dining table": 60}
+
+
+def parse_classes(raw: str | None) -> tuple[str, ...]:
+    """PAWSIGHT_CLASSES -> class names in index order.
+
+    Empty means the three base classes. A preset name ("shared") or a comma-
+    separated list. The list must START with dog, bowl, person in that order,
+    and that is not taste:
+      * label files on disk store INDICES: 0 dog, 1 bowl, 2 person in every
+        dataset collected so far. Extra classes are appended, so those files
+        keep their meaning;
+      * the zones and the acceptance gate hang on `bowl` (AGENTS.md, section 7).
+    A bad value raises instead of falling back: a silent fallback would make the
+    detector and the dashboard disagree about what index 3 means.
+    """
+    raw = (raw or "").strip()
+    if not raw:
+        return BASE_CLASSES
+    if raw.lower() in PRESETS:
+        return PRESETS[raw.lower()]
+    names = tuple(" ".join(x.split()) for x in raw.split(","))
+    names = tuple(n for n in names if n)
+    if names[:3] != BASE_CLASSES:
+        raise ValueError(
+            "PAWSIGHT_CLASSES must start with dog,bowl,person (labels on disk store "
+            f"indices 0,1,2 for them), got: {raw!r}")
+    if len(set(names)) != len(names):
+        raise ValueError(f"PAWSIGHT_CLASSES has a duplicate name: {raw!r}")
+    bad = [n for n in names if len(n) > 32 or not all(c.isalnum() or c in " _-" for c in n)]
+    if bad:
+        raise ValueError(f"PAWSIGHT_CLASSES: bad class name(s) {bad!r}: "
+                         "letters, digits, space, _ and - only, up to 32 characters")
+    return names
+
+
+def _configured() -> str | None:
+    """os.environ first (docker passes .env as env_file), then .env itself:
+    this module is stdlib only and may be imported before config.py has run
+    load_dotenv, and the detector and the brain must see the same list."""
+    if "PAWSIGHT_CLASSES" in os.environ:
+        return os.environ["PAWSIGHT_CLASSES"]
+    env = Path(__file__).resolve().parents[1] / ".env"
+    try:
+        for line in env.read_text().splitlines():
+            k, sep, v = line.partition("=")
+            if sep and k.strip() == "PAWSIGHT_CLASSES":
+                return v.split(" #")[0].strip().strip("'\"")
+    except OSError:
+        pass
+    return None
+
+
+CLASS_NAMES: tuple[str, ...] = parse_classes(_configured())
+DATASET_CLASSES: dict[int, str] = dict(enumerate(CLASS_NAMES))
+EXTRA_CLASSES: tuple[str, ...] = CLASS_NAMES[len(BASE_CLASSES):]
+COCO_TO_DATASET: dict[int, int] = {_COCO_IDS[n]: i for i, n in DATASET_CLASSES.items()
+                                   if n in _COCO_IDS}
 
 # Reverse mapping: name -> dataset index. NAMES come over the wire from the
 # dashboard, not indices; see the cls_remap comment above.

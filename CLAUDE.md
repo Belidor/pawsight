@@ -11,7 +11,8 @@ Five rules from it that are broken most often:
    output.
 3. Everything listens on `127.0.0.1` only; nothing is exposed to the outside.
 4. We do not invent zones for the human (`AGENTS.md`, section 6).
-5. Fine-tuning only with three classes `dog`/`bowl`/`person`; do not bypass the
+5. Fine-tuning always keeps `dog`/`bowl`/`person` as classes 0-2 (extras only
+   after them, via `PAWSIGHT_CLASSES`); do not bypass the
    acceptance gate in `pawsight/train.py` (`AGENTS.md`, section 7).
 
 Install: `./install.sh --rtsp '<url>'`. Run: `./start.sh`.

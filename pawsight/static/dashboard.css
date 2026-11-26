@@ -179,6 +179,7 @@
   .btn:disabled{opacity:.35; cursor:not-allowed}
   .btn:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
   .btn.sm{padding:3px 9px; font-size:12px}
+  a.btn{text-decoration:none; display:inline-block}
   .btn[aria-pressed="true"]{background:var(--accent-dim); border-color:var(--accent)}
   .seg{display:inline-flex; border:1px solid var(--edge); border-radius:5px; overflow:hidden}
   .seg-b{

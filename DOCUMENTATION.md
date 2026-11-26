@@ -374,6 +374,37 @@ affect the current run.
 **"Home"** returns to the live video and the camera activity feed; "Exit" (or
 `Esc`) just closes the frame and leaves you in the queue.
 
+### The labelling page: `/label`
+
+The same work on a page of its own, `http://127.0.0.1:8099/label` (the
+"labelling" link in the dashboard header, or "Open labelling page" in the
+"Dataset" tab). The frame takes the full width instead of sharing the video's
+box, and the frame list stays beside it, so a long session of reviews does not
+mean scrolling between the queue and the frame.
+
+* the list on the left has the same order as the "Dataset" tab ("suspicious" or
+  "newest") plus a filter: not reviewed yet, no bowl box, dog only, empty;
+* **"Capture from camera"** (`C`) freezes the detector's last frames, as the
+  button under the video does; `←`/`→` above the frame step through them, the
+  model's boxes on that frame are the starting point, and "Save" puts it into
+  `dataset/`;
+* boxes: drag to draw, drag a box to move it, its corners to resize; `1`…`9`
+  sets the class (of the selected box too), `Tab` cycles boxes, arrows nudge the
+  selected one (`Shift` for 10 px), `Del` deletes, `Ctrl+Z` undoes, `H` hides the
+  boxes to look at the picture underneath;
+* `Enter` saves and opens the next frame in the list. Leaving a frame with
+  unsaved boxes takes the same action twice: the first one says what would be
+  lost.
+
+The rules are the same as in the dashboard, because the requests are the same:
+a class that disappears from a frame needs a second "Save", and "Delete frame"
+needs a second press. The class buttons come from `pawsight/labels.py`
+(`DATASET_CLASSES`), so the page never offers a class the detector would
+refuse to write. `PAWSIGHT_CLASSES=shared` in `.env` adds couch, bed, chair,
+dining table and rug, as in the shared model; then the list gets a "no extra
+classes" filter for frames labelled before they existed (details in
+`docs/FINETUNE.md`).
+
 ### Once a week
 
 **Step 1. See what has accumulated**
