@@ -44,10 +44,22 @@ def host_triple() -> str:
     return next(ln.split(": ", 1)[1] for ln in out.splitlines() if ln.startswith("host: "))
 
 
-def get(url: str) -> bytes:
-    print(f"  downloading {url}", flush=True)
-    with urllib.request.urlopen(url, timeout=120) as r:
-        return r.read()
+def get(url: str, attempts: int = 4) -> bytes:
+    """GitHub release downloads time out now and then (seen on a Windows CI
+    runner): retry with a growing pause instead of failing the whole build."""
+    import time
+
+    for i in range(1, attempts + 1):
+        print(f"  downloading {url}" + (f" (attempt {i})" if i > 1 else ""), flush=True)
+        try:
+            with urllib.request.urlopen(url, timeout=120) as r:
+                return r.read()
+        except OSError as e:
+            if i == attempts:
+                raise
+            print(f"  {type(e).__name__}: {e}; retrying", flush=True)
+            time.sleep(5 * i)
+    raise AssertionError("unreachable")
 
 
 def member(data: bytes, name: str, is_zip: bool) -> bytes:
