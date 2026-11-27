@@ -77,9 +77,24 @@ The installer sets up Homebrew, `uv`, Python 3.12 arm64, the dependencies,
 go2rtc, mosquitto, Ollama and the models, creates `.env` and runs a self-test.
 It is idempotent: if it fails halfway, just run it again.
 
-**Handing the machine to an AI agent?** Tell it "install according to
-AGENTS.md". [AGENTS.md](AGENTS.md) is written for exactly that, together with
-the rules for what the agent must not do.
+### Or let your AI agent do it
+
+Have Claude Code, Codex, Cursor or another agent with a terminal? Paste this
+into it, and it installs pawsight and walks you through the camera, the water
+bowl, Telegram, zones and autostart, then checks that everything really works:
+
+```text
+Install and set up pawsight on this computer for me. Clone
+https://github.com/Belidor/pawsight into ~/pawsight (or update it if it is
+already there), then open docs/agent-install.md in the clone and follow it
+step by step. Talk to me in my language.
+```
+
+In Claude Code inside a clone it is one command: `/install-pawsight`.
+The agent never asks for your passwords or tokens: you type those on the setup
+page yourself. The full script it follows is
+[docs/agent-install.md](docs/agent-install.md), and the rules for what it must
+not do are in [AGENTS.md](AGENTS.md).
 
 Three things the installer will not do for you, because they are your secrets
 and your decision: the Telegram bot token, the Mi account login (for Xiaomi
@@ -407,6 +422,7 @@ keeps turning it. For stable zones you usually need to turn it off:
 
 - [docs/getting-started.md](docs/getting-started.md): step by step with screenshots: camera, Telegram, zones
 - [AGENTS.md](AGENTS.md): instructions for an AI agent with full access
+- [docs/agent-install.md](docs/agent-install.md): a prompt for an AI agent to install and set everything up with you
 - [docs/FINETUNE.md](docs/FINETUNE.md): fine-tuning for your own dog
 - [docs/architecture.md](docs/architecture.md): engineering decisions and measurements
 - [DOCUMENTATION.md](DOCUMENTATION.md): detailed system description

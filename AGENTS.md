@@ -8,6 +8,11 @@ Read it in full before your first action. There are places here where doing
 things "the usual way" means silently breaking the system, and the human will
 not notice for weeks.
 
+Asked to install **and set up** pawsight for the human? Follow
+[docs/agent-install.md](docs/agent-install.md) too: the step-by-step guided
+flow (camera, water bowl, Telegram, zones, autostart, final check) built on the
+rules in this file.
+
 ---
 
 ## 0. What this project is
