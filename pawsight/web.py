@@ -609,8 +609,10 @@ class Dashboard(DatasetRoutes, Go2rtcProxy, SetupRoutes):
     async def _static_no_cache(req, resp) -> None:
         """/static with revalidation: the dashboard script and styles are now
         separate files, and after an update the browser must not keep an old
-        script under new markup. On loopback revalidation is a 304 in a millisecond."""
-        if req.path.startswith("/static/"):
+        script under new markup. On loopback revalidation is a 304 in a millisecond.
+        The pages themselves too: the desktop app's window (WebKit) has no
+        reload button, so a cached old page would stay until the cache expired."""
+        if req.path.startswith("/static/") or resp.content_type == "text/html":
             resp.headers["Cache-Control"] = "no-cache"
 
     def app(self) -> web.Application:

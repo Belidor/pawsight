@@ -102,6 +102,13 @@ cameras) and confirming which bowl is the water bowl. It will take you up to
 those points and tell you what is needed; you can enter them on the setup page
 `http://127.0.0.1:8099/setup`.
 
+### Desktop app (preview)
+
+There is also an app with one installer per platform: macOS (Apple Silicon),
+Windows and Linux. It downloads Python and torch on the first start and then
+runs the same code, with the same setup page. It is not signed yet; see
+[desktop/README.md](desktop/README.md) for how it works and how to build it.
+
 ## Architecture
 
 ```
@@ -426,6 +433,7 @@ keeps turning it. For stable zones you usually need to turn it off:
 - [docs/FINETUNE.md](docs/FINETUNE.md): fine-tuning for your own dog
 - [docs/architecture.md](docs/architecture.md): engineering decisions and measurements
 - [DOCUMENTATION.md](DOCUMENTATION.md): detailed system description
+- [desktop/README.md](desktop/README.md): the desktop app (installers for macOS, Windows, Linux)
 
 ## Roadmap
 

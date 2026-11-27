@@ -1,0 +1,67 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "pawsight",
+  "version": "0.1.0",
+  "identifier": "cc.belidor.pawsight",
+  "build": {
+    "frontendDist": "../ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "pawsight",
+        "width": 1280,
+        "height": 860,
+        "minWidth": 720,
+        "minHeight": 520,
+        "url": "index.html"
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["dmg", "app", "nsis", "deb", "appimage"],
+    "category": "Utility",
+    "shortDescription": "Local dog camera: drinking, eating and where the dog is",
+    "longDescription": "pawsight watches your dog with an ordinary camera and counts drinking and eating. Everything runs on this computer.",
+    "copyright": "AGPL-3.0",
+    "license": "AGPL-3.0-only",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "externalBin": ["binaries/uv", "binaries/go2rtc"],
+    "resources": {
+      "../../pawsight/": "payload/pawsight/",
+      "../../trackers/": "payload/trackers/",
+      "../../scripts/get_device_token.py": "payload/scripts/get_device_token.py",
+      "../../requirements.txt": "payload/requirements.txt",
+      "../../.env.example": "payload/.env.example",
+      "../../zones.example.yaml": "payload/zones.example.yaml",
+      "../../go2rtc/go2rtc.example.yaml": "payload/go2rtc/go2rtc.example.yaml",
+      "../../LICENSE": "payload/LICENSE"
+    },
+    "macOS": {
+      "minimumSystemVersion": "13.0"
+    },
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    },
+    "linux": {
+      "deb": {
+        "depends": []
+      }
+    }
+  },
+  "plugins": {}
+}

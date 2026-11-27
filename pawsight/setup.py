@@ -208,6 +208,12 @@ def _is_mac(system: str | None) -> bool:
     return (system or platform.system()) == "Darwin"
 
 
+def _by_name(system: str | None) -> bool:
+    """Cameras are addressed by NAME: avfoundation (macOS) and dshow (Windows).
+    Linux is the odd one out with /dev/videoN."""
+    return _is_mac(system) or (system or platform.system()) == "Windows"
+
+
 def build_webcam_url(device: str, size: str = WEBCAM_DEFAULT_SIZE,
                      input_format: str = "", system: str | None = None) -> str:
     """go2rtc source for a local camera.
@@ -233,7 +239,7 @@ def build_webcam_url(device: str, size: str = WEBCAM_DEFAULT_SIZE,
     if len(device) > 128 or any(c in device for c in "\"\r\n\t\\"):
         raise SetupError("the camera name contains characters ffmpeg cannot take")
     params = []
-    if _is_mac(system):
+    if _by_name(system):
         params.append("video=" + quote(device, safe=""))
     else:
         if not _V4L2_DEV.match(device):
@@ -275,7 +281,7 @@ def webcam_devices(sources, system: str | None = None) -> list[dict]:
         sources = sources.get("sources")
     if not isinstance(sources, list):
         return []
-    mac = _is_mac(system)
+    mac = _by_name(system)
     found: dict[str, dict] = {}
     for s in sources:
         if not isinstance(s, dict):
@@ -310,6 +316,10 @@ def webcam_devices(sources, system: str | None = None) -> list[dict]:
 
 def webcam_hint(system: str | None = None) -> str:
     """What to do when go2rtc sees no cameras. Said once, in one place."""
+    if (system or platform.system()) == "Windows":
+        return ("go2rtc sees no cameras. A webcam needs ffmpeg.exe next to go2rtc or on PATH; "
+                "after plugging in a camera, restart pawsight from its tray icon "
+                "(go2rtc reads the device list once, at start)")
     if _is_mac(system):
         return ("go2rtc sees no cameras. A webcam needs ffmpeg: brew install ffmpeg, "
                 "then ./stop.sh && ./start.sh (go2rtc reads the device list once, at start; "
@@ -607,7 +617,8 @@ def _write_private(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=f".{path.name}.", suffix=".part")
     try:
-        os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)
+        if hasattr(os, "fchmod"):      # not on Windows before 3.13; ACLs apply there
+            os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(text)
         os.replace(tmp, path)

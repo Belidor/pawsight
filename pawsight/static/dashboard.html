@@ -13,6 +13,7 @@
   System fonts, no Google Fonts: a local tool must work without internet.
 -->
 <link rel="stylesheet" href="/static/dashboard.css">
+<script src="/static/nav.js" defer></script>
 </head>
 <body>
 <div class="app">
@@ -22,9 +23,6 @@
       <span><i class="dot" id="d-det"></i>detector</span>
       <span><i class="dot" id="d-cam"></i>camera</span>
       <span id="h-train" class="train" hidden><i class="dot on"></i>fine-tuning <b id="h-train-t"></b></span>
-      <a href="/label" title="review camera frames and draw boxes for fine-tuning, on a page of its own">labelling</a>
-      <a href="/zones" title="draw zones and choose which send Telegram notifications">zones</a>
-      <a href="/setup" title="camera address, Telegram, water bowl choice">setup</a>
     </div>
   </header>
 

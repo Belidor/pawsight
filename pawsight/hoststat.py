@@ -117,14 +117,8 @@ def train_state() -> dict:
         try:
             lk = json.loads(TRAIN_LOCK.read_text())
             pid = int(lk.get("pid") or 0)
-            alive = False
-            if pid:
-                try:
-                    import os
-                    os.kill(pid, 0)
-                    alive = True
-                except OSError:
-                    alive = False
+            from .procutil import pid_alive
+            alive = pid_alive(pid)
             if alive:
                 out.update(state="running", pid=pid, run=lk.get("run"),
                            log=lk.get("log"), started=lk.get("started"),

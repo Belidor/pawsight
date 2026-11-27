@@ -31,13 +31,13 @@ from __future__ import annotations
 import json
 import logging
 import os
-import signal
 import subprocess
 import sys
 import time
 from pathlib import Path
 
 from .config import ROOT, Config
+from . import procutil
 from .labels import MIN_IMAGES
 
 log = logging.getLogger("pawsight.train")
@@ -54,16 +54,12 @@ def _alive(pid: int) -> bool:
     """
     if not pid:
         return False
-    try:
-        os.kill(pid, 0)
-    except OSError:
+    if not procutil.pid_alive(pid):
         return False
-    try:
-        out = subprocess.run(["ps", "-p", str(pid), "-o", "command="],
-                             capture_output=True, text=True, timeout=3).stdout
-        return "pawsight" in out and "train" in out
-    except Exception:
+    out = procutil.cmdline(pid)
+    if out is None:
         return True          # could not check: assume alive, that is safer
+    return "pawsight" in out and "train" in out
 
 
 def read_lock() -> dict | None:
@@ -107,11 +103,7 @@ class Trainer:
         if self._proc is not None and self._proc.pid == pid:
             alive = self._proc.poll() is None
         else:
-            try:
-                os.kill(pid, 0)
-                alive = True
-            except OSError:
-                alive = False
+            alive = procutil.pid_alive(pid)
         if not alive:
             self._pause_pid = None
             log.info("training finished: detection resumed")
@@ -159,7 +151,7 @@ class Trainer:
                 [sys.executable, "-m", "pawsight", "train"],
                 cwd=str(ROOT), stdout=fh, stderr=subprocess.STDOUT,
                 env={**os.environ, "PYTHONUNBUFFERED": "1"},
-                start_new_session=True,
+                **procutil.session_kwargs(),
             )
         except Exception as e:
             fh.close()
@@ -185,12 +177,9 @@ class Trainer:
             return {"ok": False, "error": "training is not running"}
         pid = int(d["pid"])
         try:
-            os.killpg(os.getpgid(pid), signal.SIGTERM)
-        except OSError:
-            try:
-                os.kill(pid, signal.SIGTERM)
-            except OSError as e:
-                return {"ok": False, "error": str(e)}
+            procutil.terminate(pid)
+        except OSError as e:
+            return {"ok": False, "error": str(e)}
         log.warning("fine-tuning stopped manually (pid %s)", pid)
         LOCK.unlink(missing_ok=True)
         if self._pause_pid:

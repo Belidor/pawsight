@@ -1,4 +1,4 @@
-"""Entry point: python -m pawsight [live|batch|setup|selftest|today]"""
+"""Entry point: python -m pawsight [run|live|batch|setup|selftest|today|...]"""
 from __future__ import annotations
 
 import logging
@@ -481,9 +481,20 @@ def _subscribe_observations(bus, brain, dash):
 
 
 def main() -> int:
+    mode = sys.argv[1] if len(sys.argv) > 1 else "live"
+    # The desktop app's modes come first: they need neither the zones nor a
+    # Config, and `appinit` runs before .env and zones.yaml even exist.
+    if mode == "run":
+        from .runner import main as run_main
+        return run_main(sys.argv[2:])
+    if mode == "broker":
+        from .broker import main as broker_main
+        return broker_main()
+    if mode == "appinit":
+        from .appinit import main as appinit_main
+        return appinit_main(sys.argv[2:])
     _log()
     cfg = Config()
-    mode = sys.argv[1] if len(sys.argv) > 1 else "live"
     if mode not in ("brain", "setup", "today", "drinks", "ptz"):
         cfg.resolve_device()
 
@@ -682,7 +693,7 @@ def main() -> int:
             brain.close()
             bus.close()
         return 0
-    print(f"unknown mode: {mode}. Available: live, batch, detect, brain, setup, ptz, tilt, selftest, today, drinks, dataset, train")
+    print(f"unknown mode: {mode}. Available: run, live, batch, detect, brain, broker, appinit, setup, ptz, tilt, selftest, today, drinks, dataset, train")
     return 2
 
 

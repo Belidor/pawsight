@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pawsight</title>
+<style>
+  :root {
+    --bg: #faf7f2; --fg: #1d1b18; --muted: #6b645a; --card: #fff; --line: #e8e1d6;
+    --accent: #e8913a; --accent-fg: #1d1b18; --err: #b3261e; --warn: #8a5a00;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #141210; --fg: #f1ece4; --muted: #a39a8d; --card: #1e1b18; --line: #312c26;
+            --err: #ff8a80; --warn: #ffcc80; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 40px 24px; }
+  header { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; }
+  header img { width: 52px; height: 52px; border-radius: 12px; }
+  h1 { font-size: 24px; margin: 0; }
+  #phase { color: var(--muted); margin: 2px 0 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+          padding: 16px 18px; margin-bottom: 16px; }
+  .card h2 { font-size: 16px; margin: 0 0 6px; }
+  .card p { margin: 0 0 12px; color: var(--muted); }
+  button { font: inherit; border-radius: 8px; padding: 8px 14px; cursor: pointer;
+           border: 1px solid var(--line); background: transparent; color: var(--fg); margin-right: 8px; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); font-weight: 600; }
+  #log { font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+         max-height: 46vh; overflow: auto; white-space: pre-wrap; word-break: break-word; }
+  #log .step { color: var(--muted); }
+  #log .error { color: var(--err); }
+  #log .warn { color: var(--warn); }
+  .hidden { display: none; }
+  .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--line);
+             border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite;
+             vertical-align: -1px; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .links { color: var(--muted); font-size: 13px; }
+  .links a { color: inherit; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="icon.png" alt="">
+    <div>
+      <h1>pawsight</h1>
+      <p id="phase"><span class="spinner"></span>Starting…</p>
+    </div>
+  </header>
+
+  <section id="ready" class="card hidden">
+    <h2>Frame descriptions need Ollama</h2>
+    <p id="ollama-text">pawsight is running. To tell drinking from eating it describes frames with a
+      local vision model in Ollama (about 6 GB). Without it, detection and zones still work.</p>
+    <div id="ollama-missing" class="hidden">
+      <button class="primary" onclick="call('get_ollama')">Get Ollama</button>
+      <button onclick="call('retry')">I installed it, check again</button>
+    </div>
+    <div id="ollama-nomodel" class="hidden">
+      <button class="primary" onclick="call('pull_vlm')">Download the model</button>
+    </div>
+    <div style="margin-top:10px">
+      <button onclick="call('open_dashboard')">Open pawsight</button>
+      <button onclick="call('skip_vlm')">Continue without descriptions</button>
+    </div>
+  </section>
+
+  <section id="running" class="card hidden">
+    <h2>pawsight is running</h2>
+    <p>Closing the window keeps the camera watching. The app stays in the menu bar (tray); quit it from there.</p>
+    <button class="primary" onclick="call('open_dashboard')">Open the dashboard</button>
+    <button onclick="call('retry')">Restart</button>
+  </section>
+
+  <section id="failed" class="card hidden">
+    <h2>Something went wrong</h2>
+    <p>The log below says what. Nothing was sent anywhere.</p>
+    <button class="primary" onclick="call('retry')">Retry</button>
+    <button onclick="call('open_data_dir')">Open the data folder</button>
+  </section>
+
+  <section class="card">
+    <h2>Log</h2>
+    <div id="log"></div>
+  </section>
+  <p class="links">Everything runs on this computer and listens on 127.0.0.1 only.
+    <span id="data"></span></p>
+</main>
+<script>
+  const T = window.__TAURI__;
+  const call = (cmd) => T.core.invoke(cmd).catch((e) => add({step: "error", text: String(e), level: "error"}));
+  const log = document.getElementById("log");
+  const PHASES = {
+    installing: "Installing. The first start downloads Python and torch (a few GB), later starts take seconds.",
+    starting: "Starting the camera stream, the detector and the dashboard…",
+    ready: "Running.",
+    running: "Running.",
+    error: "Stopped because of an error.",
+  };
+  function add(l) {
+    const div = document.createElement("div");
+    div.className = l.level || "info";
+    const s = document.createElement("span");
+    s.className = "step";
+    s.textContent = l.step + ": ";
+    div.append(s, document.createTextNode(l.text));
+    const stick = log.scrollTop + log.clientHeight >= log.scrollHeight - 30;
+    log.append(div);
+    if (stick) log.scrollTop = log.scrollHeight;
+  }
+  function render(st) {
+    const busy = st.phase === "installing" || st.phase === "starting" || !st.phase;
+    document.getElementById("phase").innerHTML =
+      (busy ? '<span class="spinner"></span>' : "") + (PHASES[st.phase] || "Starting…");
+    document.getElementById("ready").classList.toggle("hidden", st.phase !== "ready");
+    document.getElementById("running").classList.toggle("hidden", st.phase !== "running");
+    document.getElementById("failed").classList.toggle("hidden", st.phase !== "error");
+    document.getElementById("ollama-missing").classList.toggle("hidden", st.ollama !== "missing");
+    document.getElementById("ollama-nomodel").classList.toggle("hidden", st.ollama !== "no-model");
+    if (st.ollama === "ready") {
+      document.getElementById("ollama-text").textContent =
+        "Ollama and the model " + st.vlm_model + " are ready. Descriptions are on.";
+    }
+    if (st.data_dir) document.getElementById("data").textContent = "Data folder: " + st.data_dir;
+  }
+  T.core.invoke("get_state").then((st) => { st.lines.forEach(add); render(st); });
+  T.event.listen("pawsight://line", (e) => add(e.payload));
+  T.event.listen("pawsight://state", (e) => render(e.payload));
+</script>
+</body>
+</html>

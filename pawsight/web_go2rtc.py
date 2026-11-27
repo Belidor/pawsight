@@ -21,6 +21,27 @@ log = logging.getLogger("pawsight.web")
 STREAMS = frozenset({setup.STREAM_MAIN, setup.STREAM_SUB})
 
 
+def is_webkit(user_agent: str) -> bool:
+    """Safari and the desktop app's window (WKWebView), not Chromium.
+    Chromium also says "AppleWebKit" in its User-Agent, hence the exclusions."""
+    ua = user_agent or ""
+    return "AppleWebKit" in ua and not any(t in ua for t in ("Chrome", "Chromium", "Edg/"))
+
+
+def view_stream(src: str, user_agent: str, main_url: str) -> str:
+    """Which go2rtc stream to play for a requested one.
+
+    Xiaomi cameras over P2P switch the main stream between 2304x1296 and
+    640x360 as the link allows (measured: both sizes within 15 s). Chromium's
+    MSE handles that; WebKit's HEVC decoder keeps the first size and draws the
+    smaller frames in a corner of a green picture. So WebKit gets the SD
+    substream, which keeps one size, and Chromium keeps the full picture.
+    """
+    if src == setup.STREAM_MAIN and is_webkit(user_agent) and main_url.startswith("xiaomi://"):
+        return setup.STREAM_SUB
+    return src
+
+
 class Go2rtcProxy:
     # ---- go2rtc proxying ----
 
@@ -85,6 +106,7 @@ class Go2rtcProxy:
         # anything could be appended to the query through it (`&` etc.).
         if src not in STREAMS:
             raise web.HTTPBadRequest(text="unknown stream")
+        src = view_stream(src, req.headers.get("User-Agent", ""), setup.read_stream())
         client = web.WebSocketResponse(protocols=("binary",), max_msg_size=0)
         await client.prepare(req)
 
