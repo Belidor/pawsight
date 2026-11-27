@@ -47,6 +47,12 @@ class DashboardStatic(unittest.IsolatedAsyncioTestCase):
             self.assertIn(href, js)
         self.assertIn("history.back()", js)
 
+    async def test_pages_are_not_cached(self):
+        for path in ("/?dashboard=1", "/label", "/zones", "/setup"):
+            with self.subTest(path=path):
+                r = await self.client.get(path)
+                self.assertEqual(r.headers.get("Cache-Control"), "no-cache")
+
     async def test_files_served_without_stale_cache(self):
         for path, kind in (("/static/dashboard.js", "javascript"),
                            ("/static/dashboard.css", "css")):
