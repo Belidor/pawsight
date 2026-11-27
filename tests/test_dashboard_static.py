@@ -33,7 +33,19 @@ class DashboardStatic(unittest.IsolatedAsyncioTestCase):
         player = html.index('src="/player/video-stream.js"')
         logic = html.index('<script type="module" src="/static/dashboard.js">')
         self.assertLess(player, logic)
-        self.assertEqual(html.count("<script"), 2, "no inline scripts left")
+        self.assertEqual(html.count("<script"), 3, "no inline scripts left")
+
+    async def test_every_page_has_the_nav_bar(self):
+        # The desktop app window has no browser toolbar: every page needs the
+        # shared Back button and tabs, or a page like /setup is a dead end.
+        for path in ("/?dashboard=1", "/label", "/zones", "/setup"):
+            with self.subTest(path=path):
+                html = await (await self.client.get(path)).text()
+                self.assertIn('<script src="/static/nav.js" defer></script>', html)
+        js = await (await self.client.get("/static/nav.js")).text()
+        for href in ('"/?dashboard=1"', '"/label"', '"/zones"', '"/setup"'):
+            self.assertIn(href, js)
+        self.assertIn("history.back()", js)
 
     async def test_files_served_without_stale_cache(self):
         for path, kind in (("/static/dashboard.js", "javascript"),
